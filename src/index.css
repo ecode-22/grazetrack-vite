@@ -1,0 +1,19 @@
+@import './style.css';
+
+/* The Vite entry mounts into #root, which sits between <body> and the
+   sidebar/app-main pair — the original app put its flex layout directly
+   on <body>, so we recreate it on the wrapper the router renders into. */
+#root {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+}
+
+.app-shell {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
