@@ -4172,6 +4172,10 @@ body {
 .as-preview-summary strong { font-size: 12px; }
 .as-preview-summary span { color: #286747; font-size: 11px; font-weight: 700; }
 .as-preview-summary small { color: #758279; font-size: 10px; line-height: 1.45; }
+.as-split-panel { z-index: 1100; }
+.as-sp-body { gap: 2px; }
+.as-preview-summary { margin-top: 2px; }
+.leaflet-top, .leaflet-bottom { z-index: 500; }
 
 @media (max-width: 900px) {
     .sidebar .sb-mobile-close { border-color: #d6e2d6; background: #fff; color: #35694a; }

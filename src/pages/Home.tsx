@@ -125,7 +125,7 @@ export default function Home() {
   function handleBoundaryDrawn(geometry: FieldGeometry) {
     setSplitBoundary(geometry);
     setToolState('select');
-    setStatusText('Adjust the camp layout, then create the paddocks.');
+    setStatusText('Preview similar-area paddocks, then create them.');
   }
 
   function handleCreateCamps() {
@@ -248,10 +248,10 @@ export default function Home() {
                     <input className="as-count-input" type="number" min="2" max="16" value={splitCount} onChange={(event) => setSplitCount(Math.min(16, Math.max(2, Number(event.target.value) || 2)))} />
                     <button className="as-count-btn" onClick={() => setSplitCount((count) => Math.min(16, count + 1))} aria-label="More camps">+</button>
                   </div>
-                  <input className="as-count-slider" type="range" min="2" max="16" value={splitCount} onChange={(event) => setSplitCount(Number(event.target.value))} aria-label="Number of camps" />
+                  <input className="as-count-slider" type="range" min="2" max="16" value={splitCount} onChange={(event) => setSplitCount(Number(event.target.value))} aria-label="Number of paddocks" />
                 </section>
                 <section className="as-section">
-                  <div className="as-section-title">Split direction</div>
+                  <div className="as-section-title">Paddocks run</div>
                   <div className="as-dir-row">
                     <button className={`as-dir-btn${splitDirection === 'vertical' ? ' active' : ''}`} onClick={() => setSplitDirection('vertical')} aria-pressed={splitDirection === 'vertical'}>↕ Run north-south</button>
                     <button className={`as-dir-btn${splitDirection === 'horizontal' ? ' active' : ''}`} onClick={() => setSplitDirection('horizontal')} aria-pressed={splitDirection === 'horizontal'}>↔ Run east-west</button>
