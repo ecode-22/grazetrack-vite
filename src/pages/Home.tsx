@@ -65,6 +65,10 @@ export default function Home() {
     () => splitBoundary ? createCampGeometries(splitBoundary, splitCount, splitDirection) : [],
     [splitBoundary, splitCount, splitDirection],
   );
+  const campAreas = useMemo(() => campGeometries.map(calcAreaHa), [campGeometries]);
+  const campAreaRange = campAreas.length
+    ? `${Math.min(...campAreas).toFixed(1)}-${Math.max(...campAreas).toFixed(1)} ha each`
+    : 'No paddocks fit inside this boundary';
 
   useEffect(() => {
     if (activeTab === 'map') mapRef.current?.invalidateSize();
@@ -238,7 +242,7 @@ export default function Home() {
               </div>
               <div className="as-sp-body">
                 <section className="as-section">
-                  <div className="as-section-title">Number of camps <span className="as-section-hint">2-16</span></div>
+                    <div className="as-section-title">Number of paddocks <span className="as-section-hint">2-16</span></div>
                   <div className="as-count-input-row">
                     <button className="as-count-btn" onClick={() => setSplitCount((count) => Math.max(2, count - 1))} aria-label="Fewer camps">−</button>
                     <input className="as-count-input" type="number" min="2" max="16" value={splitCount} onChange={(event) => setSplitCount(Math.min(16, Math.max(2, Number(event.target.value) || 2)))} />
@@ -249,11 +253,15 @@ export default function Home() {
                 <section className="as-section">
                   <div className="as-section-title">Split direction</div>
                   <div className="as-dir-row">
-                    <button className={`as-dir-btn${splitDirection === 'vertical' ? ' active' : ''}`} onClick={() => setSplitDirection('vertical')}>↕ Vertical</button>
-                    <button className={`as-dir-btn${splitDirection === 'horizontal' ? ' active' : ''}`} onClick={() => setSplitDirection('horizontal')}>↔ Horizontal</button>
+                    <button className={`as-dir-btn${splitDirection === 'vertical' ? ' active' : ''}`} onClick={() => setSplitDirection('vertical')} aria-pressed={splitDirection === 'vertical'}>↕ Run north-south</button>
+                    <button className={`as-dir-btn${splitDirection === 'horizontal' ? ' active' : ''}`} onClick={() => setSplitDirection('horizontal')} aria-pressed={splitDirection === 'horizontal'}>↔ Run east-west</button>
                   </div>
                 </section>
-                <p className="as-preview-copy">{campGeometries.length} preview camps fit within your boundary. Each camp can be renamed after creation.</p>
+                <div className="as-preview-summary" aria-live="polite">
+                  <strong>{campGeometries.length} paddocks previewed</strong>
+                  <span>{campAreaRange}</span>
+                  <small>Similar-sized paddocks are spaced to use the whole boundary.</small>
+                </div>
               </div>
               <div className="as-sp-footer">
                 <button className="btn-ghost" onClick={cancelAutoSplit}>Cancel</button>
