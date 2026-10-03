@@ -213,11 +213,17 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
     const group = previewLayerGroupRef.current;
     if (!group) return;
     group.clearLayers();
-    const colors = ['#00838f', '#7b1fa2', '#ef6c00', '#1565c0', '#ad1457', '#558b2f'];
+    const colors = ['#286747', '#387a91', '#ad6538', '#62894d', '#93674e', '#5578a4'];
     previewGeometries.forEach((geometry, index) => {
-      L.geoJSON(geometry as any, {
-        style: { color: '#fff', fillColor: colors[index % colors.length], fillOpacity: 0.55, weight: 2, dashArray: '5 3' },
+      const preview = L.geoJSON(geometry as any, {
+        style: { color: '#fff', fillColor: colors[index % colors.length], fillOpacity: 0.6, weight: 2, dashArray: '5 3' },
       }).addTo(group);
+      preview.eachLayer((layer) => {
+        layer.bindTooltip(
+          `P${String(index + 1).padStart(2, '0')}`,
+          { permanent: true, direction: 'center', className: 'camp-lbl', opacity: 1 },
+        );
+      });
     });
   }, [previewGeometries]);
 

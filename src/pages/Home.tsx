@@ -16,7 +16,7 @@ import AboutModal from '@/components/modals/AboutModal';
 import GroupsManagerModal from '@/components/modals/GroupsManagerModal';
 import { COLORS, loadFarmProfile, loadFields, loadEvents, saveFields, saveEvents } from '@/lib/localStore';
 import { calcAreaHa } from '@/lib/geo';
-import { splitBoundary as createCampGeometries } from '@/lib/splitGeometry';
+import { splitBoundary as createCampGeometries, type SplitDirection } from '@/lib/splitGeometry';
 import { uid } from '@/lib/utils';
 import type { FieldGeometry, FieldType } from '@/lib/types';
 
@@ -52,7 +52,7 @@ export default function Home() {
   const [modal, setModal] = useState<ModalState>(null);
   const [splitBoundary, setSplitBoundary] = useState<FieldGeometry | null>(null);
   const [splitCount, setSplitCount] = useState(4);
-  const [splitDirection, setSplitDirection] = useState<'vertical' | 'horizontal'>('vertical');
+  const [splitDirection, setSplitDirection] = useState<SplitDirection>('balanced');
   const [ndviEnabled, setNdviEnabled] = useState(false);
   const [ndviDate, setNdviDate] = useState(() => {
     const date = new Date();
@@ -67,7 +67,7 @@ export default function Home() {
   );
   const campAreas = useMemo(() => campGeometries.map(calcAreaHa), [campGeometries]);
   const campAreaRange = campAreas.length
-    ? `${Math.min(...campAreas).toFixed(1)}-${Math.max(...campAreas).toFixed(1)} ha each`
+    ? `${Math.min(...campAreas).toFixed(1)}–${Math.max(...campAreas).toFixed(1)} ha each`
     : 'No paddocks fit inside this boundary';
 
   useEffect(() => {
@@ -125,7 +125,7 @@ export default function Home() {
   function handleBoundaryDrawn(geometry: FieldGeometry) {
     setSplitBoundary(geometry);
     setToolState('select');
-    setStatusText('Preview similar-area paddocks, then create them.');
+    setStatusText('Preview the paddock layout, then create it when the sizes look right.');
   }
 
   function handleCreateCamps() {
@@ -133,7 +133,7 @@ export default function Home() {
     const currentFields = loadFields();
     const created = campGeometries.map((geometry, index) => ({
       id: uid(),
-      name: `Camp ${String(currentFields.length + index + 1).padStart(2, '0')}`,
+      name: `Paddock ${String(currentFields.length + index + 1).padStart(2, '0')}`,
       type: 'pasture' as FieldType,
       restTarget: 42,
       maxAUperHa: null,
@@ -145,7 +145,7 @@ export default function Home() {
     saveFields([...currentFields, ...created]);
     mapRef.current?.cancelPendingField();
     setSplitBoundary(null);
-    setStatusText(`${created.length} camps created`);
+    setStatusText(`${created.length} paddocks created`);
   }
 
   function handleDeleteSelected() {
@@ -237,35 +237,45 @@ export default function Home() {
           {splitBoundary && (
             <aside className="as-split-panel open" aria-label="Auto-split camps">
               <div className="as-sp-hdr">
-                <span className="as-sp-title">⬡ Auto-split</span>
+                <span className="as-sp-title">Paddock layout</span>
                 <button className="as-sp-close" onClick={cancelAutoSplit} title="Cancel">✕</button>
               </div>
               <div className="as-sp-body">
                 <section className="as-section">
-                    <div className="as-section-title">Number of paddocks <span className="as-section-hint">2-16</span></div>
+                  <div className="as-section-title">Paddocks to create <span className="as-section-hint">2–16</span></div>
                   <div className="as-count-input-row">
-                    <button className="as-count-btn" onClick={() => setSplitCount((count) => Math.max(2, count - 1))} aria-label="Fewer camps">−</button>
-                    <input className="as-count-input" type="number" min="2" max="16" value={splitCount} onChange={(event) => setSplitCount(Math.min(16, Math.max(2, Number(event.target.value) || 2)))} />
-                    <button className="as-count-btn" onClick={() => setSplitCount((count) => Math.min(16, count + 1))} aria-label="More camps">+</button>
+                    <button className="as-count-btn" onClick={() => setSplitCount((count) => Math.max(2, count - 1))} aria-label="Fewer paddocks">−</button>
+                    <input className="as-count-input" type="number" min="2" max="16" value={splitCount} onChange={(event) => setSplitCount(Math.min(16, Math.max(2, Number(event.target.value) || 2)))} aria-label="Number of paddocks" />
+                    <button className="as-count-btn" onClick={() => setSplitCount((count) => Math.min(16, count + 1))} aria-label="More paddocks">+</button>
                   </div>
                   <input className="as-count-slider" type="range" min="2" max="16" value={splitCount} onChange={(event) => setSplitCount(Number(event.target.value))} aria-label="Number of paddocks" />
                 </section>
                 <section className="as-section">
-                  <div className="as-section-title">Paddocks run</div>
+                  <div className="as-section-title">Layout style</div>
                   <div className="as-dir-row">
-                    <button className={`as-dir-btn${splitDirection === 'vertical' ? ' active' : ''}`} onClick={() => setSplitDirection('vertical')} aria-pressed={splitDirection === 'vertical'}>↕ Run north-south</button>
-                    <button className={`as-dir-btn${splitDirection === 'horizontal' ? ' active' : ''}`} onClick={() => setSplitDirection('horizontal')} aria-pressed={splitDirection === 'horizontal'}>↔ Run east-west</button>
+                    <button className={`as-dir-btn${splitDirection === 'balanced' ? ' active' : ''}`} onClick={() => setSplitDirection('balanced')} aria-pressed={splitDirection === 'balanced'} title="Divide the longest remaining side first">▦ Balanced</button>
+                    <button className={`as-dir-btn${splitDirection === 'vertical' ? ' active' : ''}`} onClick={() => setSplitDirection('vertical')} aria-pressed={splitDirection === 'vertical'} title="Create long paddocks running north to south">↕ Long N–S</button>
+                    <button className={`as-dir-btn${splitDirection === 'horizontal' ? ' active' : ''}`} onClick={() => setSplitDirection('horizontal')} aria-pressed={splitDirection === 'horizontal'} title="Create long paddocks running east to west">↔ Long E–W</button>
                   </div>
                 </section>
+                <div className="as-preview-areas" aria-label="Paddock area preview">
+                  {campAreas.map((area, index) => (
+                    <div className="as-preview-area" key={index}>
+                      <span className="as-preview-dot" style={{ background: COLORS[(loadFields().length + index) % COLORS.length] }} />
+                      <span>Paddock {String(index + 1).padStart(2, '0')}</span>
+                      <strong>{area.toFixed(1)} ha</strong>
+                    </div>
+                  ))}
+                </div>
                 <div className="as-preview-summary" aria-live="polite">
                   <strong>{campGeometries.length} paddocks previewed</strong>
                   <span>{campAreaRange}</span>
-                  <small>Similar-sized paddocks are spaced to use the whole boundary.</small>
+                  <small>Choose a layout, compare the areas, then create your paddocks.</small>
                 </div>
               </div>
               <div className="as-sp-footer">
                 <button className="btn-ghost" onClick={cancelAutoSplit}>Cancel</button>
-                <button className="btn-primary" disabled={!campGeometries.length} onClick={handleCreateCamps}>✓ Create camps</button>
+                <button className="btn-primary" disabled={campGeometries.length !== splitCount} onClick={handleCreateCamps}>✓ Create paddocks</button>
               </div>
             </aside>
           )}
@@ -279,7 +289,7 @@ export default function Home() {
               ☰
             </button>
           )}
-          {!splitBoundary && <StatusBar statusText={statusText} />}
+          <StatusBar statusText={statusText} />
         </div>
 
         <div className={`tab-panel${activeTab === 'dashboard' ? ' active' : ''}`}>

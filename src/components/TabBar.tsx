@@ -1,11 +1,11 @@
 export type Tab = 'map' | 'dashboard' | 'rotation' | 'reports' | 'analytics';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'map', label: 'Map', icon: '🗺' },
+  { id: 'map', label: 'Map', icon: '⌖' },
   { id: 'dashboard', label: 'Dashboard', icon: '▦' },
-  { id: 'rotation', label: 'Rotation', icon: '↻' },
+  { id: 'rotation', label: 'Rotation', icon: '⟳' },
   { id: 'reports', label: 'Reports', icon: '▤' },
-  { id: 'analytics', label: 'Analytics', icon: '▥' },
+  { id: 'analytics', label: 'Analytics', icon: '⌁' },
 ];
 
 interface Props {
