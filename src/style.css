@@ -4176,6 +4176,9 @@ body {
 .as-sp-body { gap: 2px; }
 .as-preview-summary { margin-top: 2px; }
 .leaflet-top, .leaflet-bottom { z-index: 500; }
+@media (max-width: 640px) {
+    .as-split-panel { height: min(56vh, 470px); }
+}
 
 @media (max-width: 900px) {
     .sidebar .sb-mobile-close { border-color: #d6e2d6; background: #fff; color: #35694a; }

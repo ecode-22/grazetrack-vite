@@ -279,7 +279,7 @@ export default function Home() {
               ☰
             </button>
           )}
-          <StatusBar statusText={statusText} />
+          {!splitBoundary && <StatusBar statusText={statusText} />}
         </div>
 
         <div className={`tab-panel${activeTab === 'dashboard' ? ' active' : ''}`}>
