@@ -1,7 +1,7 @@
 // ============================================================
 //  types.ts — mirrors the original app's gt_fields / gt_events /
 //  gt_groups schema exactly (see gt-data.js, gt-map.js, gt-events.js
-//  in the original vanilla-JS repo), so the Supabase table and any
+//  in the original vanilla-JS repo), so the database table and any
 //  exported JSON stay compatible.
 // ============================================================
 

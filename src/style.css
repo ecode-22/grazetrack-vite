@@ -640,10 +640,14 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
+    width: 100%;
     padding: 12px 14px;
     border-radius: var(--radius);
     border: 1.5px solid var(--border);
     background: var(--bg-card);
+    color: var(--text);
+    font: inherit;
+    text-align: left;
     cursor: pointer;
     transition: var(--transition);
     margin-bottom: 6px;
@@ -670,11 +674,13 @@ body {
 }
 
 .field-item-info {
+    display: block;
     flex: 1;
     min-width: 0;
 }
 
 .field-item-name {
+    display: block;
     font-weight: 700;
     font-size: 13px;
     white-space: nowrap;
@@ -683,6 +689,7 @@ body {
 }
 
 .field-item-meta {
+    display: block;
     font-size: 10px;
     color: var(--text-muted);
     margin-top: 2px;
@@ -1235,8 +1242,13 @@ body {
 }
 
 .status-tile {
+    width: 100%;
     padding: 14px;
+    border: 0;
     border-radius: var(--radius);
+    background: transparent;
+    font: inherit;
+    text-align: left;
     cursor: pointer;
     transition: var(--transition);
     color: white;
@@ -2017,12 +2029,16 @@ body {
 }
 
 .color-swatch {
+    display: inline-grid;
+    flex: 0 0 26px;
     width: 26px;
     height: 26px;
+    padding: 0;
     border-radius: 50%;
     cursor: pointer;
     border: 2px solid transparent;
     transition: transform .2s;
+    appearance: none;
 }
 
 .color-swatch:hover {
@@ -4108,6 +4124,70 @@ body {
     .analytics-grid { grid-template-columns: minmax(0, 1fr); }
     .analytics-performance { grid-column: auto; }
     .analytics-table-row td { white-space: nowrap; }
+    .analytics-field-link { padding: 0; border: 0; background: transparent; color: #286747; font: inherit; font-weight: 700; text-align: left; cursor: pointer; }
+    .analytics-field-link:hover { text-decoration: underline; }
+
+    .field-item:focus-visible,
+    .status-tile:focus-visible,
+    .color-swatch:focus-visible,
+    .analytics-field-link:focus-visible {
+        outline: 3px solid #2b7650;
+        outline-offset: 2px;
+    }
+
+    .sb-account { display: grid; gap: 8px; }
+    .sb-user-card { min-width: 0; padding: 7px 8px; border-radius: 6px; }
+    .sb-avatar { width: 30px; height: 30px; background: #286747; }
+    .sb-user-email { display: block; text-decoration: none; }
+    .sb-user-email:hover { color: #286747; }
+    .sb-sync-label { display: block; color: #738078; text-decoration: none; }
+    .sb-sync-label:hover { color: #286747; text-decoration: underline; }
+    .sb-signout-btn { width: 30px; height: 30px; display: grid; place-items: center; font-size: 18px; }
+    .sb-signin-btn { min-height: 38px; padding: 8px 10px; border-radius: 6px; text-decoration: none; }
+    .sb-signin-btn span { font-size: 11px; }
+
+    .sync-status { display: inline-flex; align-items: center; width: fit-content; max-width: 100%; min-height: 25px; padding: 4px 9px; border: 1px solid #dbe4dc; border-radius: 5px; background: #f5f7f5; color: #536158; font-size: 10px; font-weight: 700; line-height: 1.35; }
+    .sync-status-synced { border-color: #b6d7c0; background: #edf7ef; color: #286747; }
+    .sync-status-syncing, .sync-status-pending { border-color: #ead5a5; background: #fff8e9; color: #875b16; }
+    .sync-status-error { border-color: #efc1bd; background: #fff1ef; color: #a53e35; }
+    .sync-status-offline, .sync-status-no-account { border-color: #dbe1e2; background: #f3f5f5; color: #5e6c70; }
+
+    .account-page { min-height: 100vh; overflow: auto; padding: 32px clamp(18px, 5vw, 68px); background: #f5f7f3; color: #244e38; font-family: var(--font); }
+    .account-page-header, .account-grid { width: min(100%, 960px); margin-right: auto; margin-left: auto; }
+    .account-page-header { margin-bottom: 22px; }
+    .account-back-link { display: inline-block; margin-bottom: 24px; color: #527360; font-size: 12px; font-weight: 700; text-decoration: none; }
+    .account-back-link:hover { color: #286747; text-decoration: underline; }
+    .account-kicker { display: block; color: #9a633e; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+    .account-page-header h1 { margin: 4px 0 5px; color: #244e38; font-family: Georgia, 'Times New Roman', serif; font-size: 30px; font-weight: 500; }
+    .account-page-header p { margin: 0; color: #65746b; font-size: 13px; }
+    .account-grid { display: grid; grid-template-columns: minmax(260px, .82fr) minmax(320px, 1.18fr); align-items: start; gap: 16px; }
+    .account-profile-card, .account-password-card { min-width: 0; padding: 20px; border-radius: 7px; }
+    .account-section-heading { display: flex; align-items: center; gap: 11px; margin-bottom: 19px; }
+    .account-section-heading h2 { margin: 0 0 3px; color: #244e38; font-size: 15px; }
+    .account-section-heading p { margin: 0; color: #77857b; font-size: 11px; line-height: 1.5; }
+    .account-avatar, .account-key-icon { display: grid; flex: 0 0 38px; width: 38px; aspect-ratio: 1; place-items: center; border-radius: 6px; background: #e8f1e9; color: #286747; font-size: 17px; font-weight: 800; }
+    .account-details { margin: 0 0 19px; }
+    .account-details > div { display: grid; gap: 3px; padding: 10px 0; border-bottom: 1px solid #edf0ec; }
+    .account-details dt { color: #7b877f; font-size: 10px; font-weight: 700; }
+    .account-details dd { margin: 0; overflow-wrap: anywhere; color: #304e3b; font-size: 12px; font-weight: 600; }
+    .account-muted { color: #7b877f; font-size: 12px; }
+    .account-signout-button { min-height: 36px; padding: 0 11px; border: 1px solid #e5c8c5; border-radius: 5px; background: #fff; color: #a53e35; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .account-signout-button:hover { background: #fff1ef; }
+    .account-password-form { display: grid; gap: 12px; }
+    .account-password-form .fg { margin: 0; }
+    .account-password-form .fg label { color: #53685a; font-size: 11px; }
+    .account-password-form .fg input { min-height: 39px; }
+    .account-password-submit { justify-self: start; min-width: 145px; margin-top: 2px; }
+    .account-message { margin: 0; font-size: 12px; line-height: 1.45; }
+    .account-message.error { color: #a53e35; }
+    .account-message.success { color: #286747; }
+
+    @media (max-width: 700px) {
+        .account-page { padding: 20px 14px 28px; }
+        .account-back-link { margin-bottom: 19px; }
+        .account-grid { grid-template-columns: minmax(0, 1fr); }
+        .account-profile-card, .account-password-card { padding: 16px; }
+    }
     .table-scroll { max-width: 100%; }
     .leaflet-control-layers { max-width: min(210px, calc(100vw - 28px)); }
 }
@@ -4138,6 +4218,12 @@ body {
 .as-section-title { color: #496553; font-size: 11px; text-transform: none; letter-spacing: 0; }
 .as-dir-btn { min-height: 58px; border-radius: 5px; font-size: 10px; letter-spacing: 0; text-align: center; }
 .as-dir-btn.active { border-color: #7ba889; background: #eaf2eb; color: #286747; }
+
+@media (max-width: 1100px) {
+    .tab-links { flex: 1 1 auto; overflow-x: auto; scrollbar-width: none; }
+    .tab-links::-webkit-scrollbar { display: none; }
+    .tab-bar .tab { flex: 0 0 auto; }
+}
 .as-dir-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .as-dir-btn { min-height: 52px; padding: 8px 4px; line-height: 1.3; }
 .as-count-btn, .as-count-input { border-radius: 5px; }

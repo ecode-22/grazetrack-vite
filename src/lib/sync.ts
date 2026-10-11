@@ -1,19 +1,19 @@
 // ============================================================
 //  sync.ts — background bridge between the offline localStore and
-//  Supabase's gt_user_data table (see sql/schema.sql — one row per
-//  user, three jsonb array columns). Mirrors the original app's
-//  scheduleSyncToSupabase(): whole-blob push, debounced, fires on
+//  Django farm-data API (one row per user, JSON fields). Mirrors the original app's
+//  scheduleSyncToApi(): whole-blob push, debounced, fires on
 //  reconnect.
 //
 //  Nothing in the UI ever awaits this. It is fire-and-forget: local
 //  writes always succeed instantly; sync just tries to catch up.
 // ============================================================
 
-import { supabase, supabaseConfigured } from './supabase';
-import { loadFields, saveFields, loadEvents, saveEvents, loadGroups, saveGroups, loadFarmProfile, saveFarmProfile } from './localStore';
+import { apiRequest, hasApiSession, type FarmData } from './api';
+import { getScopedStorageKey, loadFields, saveFields, loadEvents, saveEvents, loadGroups, saveGroups, loadFarmProfile, saveFarmProfile } from './localStore';
 
 const LAST_CHANGE_KEY = 'gt_last_local_change';
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
+let applyingRemoteData = false;
 const DEBOUNCE_MS = 2500;
 
 export type SyncStatus = 'offline' | 'synced' | 'syncing' | 'pending' | 'error' | 'no-account';
@@ -39,77 +39,91 @@ export function isOnline() {
 }
 
 function markLocalChange() {
-  localStorage.setItem(LAST_CHANGE_KEY, new Date().toISOString());
+  localStorage.setItem(getScopedStorageKey(LAST_CHANGE_KEY), new Date().toISOString());
 }
 
 function getLastLocalChange(): number {
-  return new Date(localStorage.getItem(LAST_CHANGE_KEY) || 0).getTime();
+  return new Date(localStorage.getItem(getScopedStorageKey(LAST_CHANGE_KEY)) || 0).getTime();
 }
 
-async function pushToSupabase() {
-  if (!isOnline() || !supabaseConfigured()) return;
-  const { data: auth } = await supabase!.auth.getUser();
-  if (!auth.user) {
+async function pushToApi(): Promise<boolean> {
+  if (!isOnline()) return false;
+  if (!hasApiSession()) {
     setStatus('no-account');
-    return;
+    return false;
   }
   setStatus('syncing');
-  const { error } = await supabase!.from('gt_user_data').upsert({
-    user_id: auth.user.id,
-    fields: loadFields(),
-    events: loadEvents(),
-    groups: loadGroups(),
-    farm: loadFarmProfile(),
-  });
-  setStatus(error ? 'error' : 'synced');
+  try {
+    await apiRequest<FarmData>('/farm-data/', {
+      method: 'PUT',
+      body: JSON.stringify({
+        fields: loadFields(),
+        events: loadEvents(),
+        groups: loadGroups(),
+        farm: loadFarmProfile(),
+      }),
+    });
+    setStatus('synced');
+    return true;
+  } catch {
+    setStatus('error');
+    return false;
+  }
 }
 
-function scheduleSyncToSupabase() {
+function scheduleSyncToApi() {
+  if (applyingRemoteData) return;
   markLocalChange();
   setStatus('pending');
   if (pushTimer) clearTimeout(pushTimer);
-  pushTimer = setTimeout(pushToSupabase, DEBOUNCE_MS);
+  pushTimer = setTimeout(pushToApi, DEBOUNCE_MS);
 }
 
 // Pulls the remote blob once — used right after login, or on first
 // reconnect of a session, to reconcile a device that was offline when
 // changes were made elsewhere. Last-write-wins, same conflict policy
 // as the original app.
-export async function pullFromSupabaseIfNewer() {
-  if (!isOnline() || !supabaseConfigured()) return;
-  const { data: auth } = await supabase!.auth.getUser();
-  if (!auth.user) {
+export async function pullFromApiIfNewer() {
+  if (!isOnline()) return;
+  if (!hasApiSession()) {
     setStatus('no-account');
     return;
   }
   setStatus('syncing');
-  const { data, error } = await supabase!
-    .from('gt_user_data')
-    .select('fields, events, groups, farm, updated_at')
-    .eq('user_id', auth.user.id)
-    .maybeSingle();
-
-  if (error) {
+  let data: FarmData | null;
+  try {
+    data = await apiRequest<FarmData | null>('/farm-data/');
+  } catch {
     setStatus('error');
     return;
   }
-  if (!data) {
-    setStatus('synced');
+  if (!data || !data.updated_at) {
+    await pushToApi();
     return;
   }
 
   const remoteUpdatedAt = new Date(data.updated_at ?? 0).getTime();
-  if (remoteUpdatedAt > getLastLocalChange()) {
-    saveFields(data.fields ?? []);
-    saveEvents(data.events ?? []);
-    saveGroups(data.groups ?? []);
-    if (data.farm) saveFarmProfile(data.farm);
-    // saveFields/saveEvents/saveGroups above each fire gt:dirty, which
-    // would otherwise re-push what we just pulled straight back up —
-    // harmless, but wasteful, so stamp the local-change clock to match
-    // what the server just told us instead.
-    localStorage.setItem(LAST_CHANGE_KEY, data.updated_at ?? new Date().toISOString());
+  const localUpdatedAt = getLastLocalChange();
+  if (remoteUpdatedAt > localUpdatedAt) {
+    applyingRemoteData = true;
+    try {
+      saveFields(data.fields ?? []);
+      saveEvents(data.events ?? []);
+      saveGroups(data.groups ?? []);
+      if (data.farm) saveFarmProfile(data.farm);
+    } finally {
+      applyingRemoteData = false;
+    }
+    localStorage.setItem(getScopedStorageKey(LAST_CHANGE_KEY), data.updated_at ?? new Date().toISOString());
+    setStatus('synced');
+    return;
   }
+
+  if (localUpdatedAt > remoteUpdatedAt) {
+    await pushToApi();
+    return;
+  }
+
   setStatus('synced');
 }
 
@@ -119,11 +133,13 @@ export function initSync() {
   if (initialized || typeof window === 'undefined') return;
   initialized = true;
 
-  setStatus(isOnline() ? 'synced' : 'offline');
+  if (!isOnline()) setStatus('offline');
+  else if (hasApiSession()) void pullFromApiIfNewer();
+  else setStatus('no-account');
 
   window.addEventListener('online', () => {
-    pullFromSupabaseIfNewer().then(pushToSupabase);
+    void pullFromApiIfNewer();
   });
   window.addEventListener('offline', () => setStatus('offline'));
-  window.addEventListener('gt:dirty', scheduleSyncToSupabase);
+  window.addEventListener('gt:dirty', scheduleSyncToApi);
 }

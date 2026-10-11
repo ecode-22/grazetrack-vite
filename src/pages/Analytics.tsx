@@ -105,8 +105,8 @@ export default function Analytics({ onSelectField }: Props) {
                 <tbody>{performance.map(({ field, history, last, totalDays, avgStocking }) => {
                   const utilization = Math.min(100, Math.round(totalDays / 365 * 100));
                   return (
-                    <tr key={field.id} className="analytics-table-row" onClick={() => onSelectField(field.id)}>
-                      <td>{field.name}</td>
+                    <tr key={field.id} className="analytics-table-row">
+                      <td><button type="button" className="analytics-field-link" onClick={() => onSelectField(field.id)}>{field.name}</button></td>
                       <td><span className={`pill pill-${getStatus(field).cls}`}>{getStatus(field).label}</span></td>
                       <td>{history.length}</td>
                       <td>{totalDays}</td>

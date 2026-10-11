@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { supabase, supabaseConfigured } from '@/lib/supabase';
-import { pullFromSupabaseIfNewer } from '@/lib/sync';
+import { authenticate, hasApiSession } from '@/lib/api';
+import { pullFromApiIfNewer } from '@/lib/sync';
 import { saveFarmProfile, saveGroups } from '@/lib/localStore';
 import { uid } from '@/lib/utils';
 import type { AnimalGroup, FarmProfile } from '@/lib/types';
@@ -33,16 +33,10 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       return;
     }
     setStep('account');
-    if (!supabaseConfigured()) {
-      setError('Multi-device mode needs Supabase configured for this app. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then reload.');
-      return;
-    }
     setBusy(true);
     try {
-      const { data, error: sessionError } = await supabase!.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (data.session) {
-        await pullFromSupabaseIfNewer();
+      if (hasApiSession()) {
+        await pullFromApiIfNewer();
         setStep('farm');
       }
     } catch (cause) {
@@ -56,22 +50,10 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
     event.preventDefault();
     setError('');
     setNotice('');
-    if (!supabase) {
-      setError('Account sync is not configured. Set up Supabase before choosing multi-device mode.');
-      return;
-    }
     setBusy(true);
     try {
-      const result = authMode === 'signin'
-        ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
-        : await supabase.auth.signUp({ email: email.trim(), password });
-      if (result.error) throw result.error;
-      if (!result.data.session) {
-        setAuthMode('signin');
-        setNotice('Check your email for the confirmation link, then return here and sign in.');
-        return;
-      }
-      await pullFromSupabaseIfNewer();
+      await authenticate(email, password, authMode);
+      await pullFromApiIfNewer();
       setStep('farm');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not complete account sign-in. Check your connection and try again.');
@@ -113,8 +95,8 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       setError('Enter your farm name to continue.');
       return;
     }
-    if (deviceMode === 'multiple' && !supabase) {
-      setError('Multi-device mode needs an account and a working Supabase connection.');
+    if (deviceMode === 'multiple' && !hasApiSession()) {
+      setError('Multi-device mode needs an account and a working backend connection.');
       return;
     }
     const validGroups: AnimalGroup[] = [];
@@ -162,13 +144,13 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
           {step === 'account' && (
             <>
               <h1>{authMode === 'signin' ? 'Sign in to sync your farm' : 'Create your sync account'}</h1>
-              <p className="onboarding-lead">Multi-device use requires an account. Your fields, grazing records, groups, and farm profile will sync through Supabase.</p>
+              <p className="onboarding-lead">Multi-device use requires an account. Your fields, grazing records, groups, and farm profile will sync securely.</p>
               <form className="onboarding-form" onSubmit={submitAccount}>
                 <label>Email<input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></label>
                 <label>Password<input type="password" autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} minLength={6} required value={password} onChange={(event) => setPassword(event.target.value)} /></label>
                 {error && <p className="onboarding-message error" role="alert">{error}</p>}
                 {notice && <p className="onboarding-message" role="status">{notice}</p>}
-                <button className="onboarding-primary" type="submit" disabled={busy || !supabaseConfigured()}>{busy ? 'Connecting…' : authMode === 'signin' ? 'Sign in and continue' : 'Create account'}</button>
+                <button className="onboarding-primary" type="submit" disabled={busy}>{busy ? 'Connecting…' : authMode === 'signin' ? 'Sign in and continue' : 'Create account'}</button>
               </form>
               <button className="onboarding-text-button" onClick={() => { setAuthMode(authMode === 'signin' ? 'signup' : 'signin'); setError(''); setNotice(''); }}>
                 {authMode === 'signin' ? 'Need an account? Create one' : 'Already have an account? Sign in'}

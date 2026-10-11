@@ -1,7 +1,7 @@
 // ============================================================
 //  localStore.ts — the offline source of truth. Every read/write in
 //  the app goes through here first, so the app is ALWAYS usable with
-//  zero connectivity — Supabase (sync.ts) is purely a background
+//  zero connectivity — the Django API (sync.ts) is purely a background
 //  target, never something a screen waits on.
 //
 //  Mirrors the original vanilla-JS app's gt-data.js: three separate
@@ -18,6 +18,40 @@ const KEYS = {
   groups: 'gt_groups',
   farm: 'gt_farm',
 } as const;
+const ACTIVE_ACCOUNT_KEY = 'gt_active_account';
+let activeAccountId = localStorage.getItem(ACTIVE_ACCOUNT_KEY);
+
+export function getScopedStorageKey(key: string) {
+  return activeAccountId ? `${key}::user:${activeAccountId}` : key;
+}
+
+export function setActiveAccount(userId: number | string | null) {
+  const nextAccountId = userId === null ? null : String(userId);
+  if (nextAccountId === activeAccountId) return;
+
+  if (!activeAccountId && nextAccountId) {
+    for (const key of Object.values(KEYS)) {
+      const scopedKey = `${key}::user:${nextAccountId}`;
+      const existing = localStorage.getItem(key);
+      if (existing !== null) {
+        if (localStorage.getItem(scopedKey) === null) localStorage.setItem(scopedKey, existing);
+        localStorage.removeItem(key);
+      }
+    }
+    const oldChangeKey = 'gt_last_local_change';
+    const newChangeKey = `${oldChangeKey}::user:${nextAccountId}`;
+    const oldChange = localStorage.getItem(oldChangeKey);
+    if (oldChange !== null) {
+      if (localStorage.getItem(newChangeKey) === null) localStorage.setItem(newChangeKey, oldChange);
+      localStorage.removeItem(oldChangeKey);
+    }
+  }
+
+  activeAccountId = nextAccountId;
+  if (activeAccountId) localStorage.setItem(ACTIVE_ACCOUNT_KEY, activeAccountId);
+  else localStorage.removeItem(ACTIVE_ACCOUNT_KEY);
+  window.dispatchEvent(new CustomEvent('gt:data-changed'));
+}
 
 function load<T>(key: string): T[] {
   try {
@@ -45,29 +79,29 @@ function save<T>(key: string, value: T[]) {
   }
 }
 
-export const loadFields = (): Field[] => load<Field>(KEYS.fields);
-export const saveFields = (v: Field[]) => save(KEYS.fields, v);
+export const loadFields = (): Field[] => load<Field>(getScopedStorageKey(KEYS.fields));
+export const saveFields = (v: Field[]) => save(getScopedStorageKey(KEYS.fields), v);
 
-export const loadEvents = (): GrazingEvent[] => load<GrazingEvent>(KEYS.events);
-export const saveEvents = (v: GrazingEvent[]) => save(KEYS.events, v);
+export const loadEvents = (): GrazingEvent[] => load<GrazingEvent>(getScopedStorageKey(KEYS.events));
+export const saveEvents = (v: GrazingEvent[]) => save(getScopedStorageKey(KEYS.events), v);
 
-export const loadGroups = (): AnimalGroup[] => load<AnimalGroup>(KEYS.groups);
-export const saveGroups = (v: AnimalGroup[]) => save(KEYS.groups, v);
+export const loadGroups = (): AnimalGroup[] => load<AnimalGroup>(getScopedStorageKey(KEYS.groups));
+export const saveGroups = (v: AnimalGroup[]) => save(getScopedStorageKey(KEYS.groups), v);
 
 export function loadFarmProfile(): FarmProfile | null {
   try {
-    const raw = localStorage.getItem(KEYS.farm);
+    const raw = localStorage.getItem(getScopedStorageKey(KEYS.farm));
     return raw ? (JSON.parse(raw) as FarmProfile) : null;
   } catch {
-    localStorage.removeItem(KEYS.farm);
+    localStorage.removeItem(getScopedStorageKey(KEYS.farm));
     return null;
   }
 }
 
 export function saveFarmProfile(profile: FarmProfile | null) {
   try {
-    if (profile) localStorage.setItem(KEYS.farm, JSON.stringify(profile));
-    else localStorage.removeItem(KEYS.farm);
+    if (profile) localStorage.setItem(getScopedStorageKey(KEYS.farm), JSON.stringify(profile));
+    else localStorage.removeItem(getScopedStorageKey(KEYS.farm));
     emitChange();
   } catch (e: any) {
     if (e?.name === 'QuotaExceededError') alert('Storage full! Export a backup first.');
@@ -90,7 +124,8 @@ export function nextColor(): string {
 
 export function getStorageUsage() {
   let used = 0;
-  (Object.values(KEYS) as string[]).forEach((k) => {
+  Object.values(KEYS).forEach((key) => {
+    const k = getScopedStorageKey(key);
     const v = localStorage.getItem(k);
     if (v) used += v.length * 2;
   });
@@ -104,9 +139,6 @@ export function onDataChanged(fn: () => void) {
 }
 
 export function clearAllData() {
-  localStorage.removeItem(KEYS.fields);
-  localStorage.removeItem(KEYS.events);
-  localStorage.removeItem(KEYS.groups);
-  localStorage.removeItem(KEYS.farm);
+  Object.values(KEYS).forEach((key) => localStorage.removeItem(getScopedStorageKey(key)));
   emitChange();
 }

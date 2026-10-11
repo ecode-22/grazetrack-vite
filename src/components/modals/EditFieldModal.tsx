@@ -96,11 +96,14 @@ export default function EditFieldModal({ fieldId, onSaved, onClose }: Props) {
         <label>Colour</label>
         <div className="color-swatches">
           {COLORS.map((c) => (
-            <div
+            <button
+              type="button"
               key={c}
               className={`color-swatch${c === color ? ' chosen' : ''}`}
               style={{ background: c }}
-              title={c}
+              title={`Set colour ${c}`}
+              aria-label={`Set field colour ${c}`}
+              aria-pressed={c === color}
               onClick={() => setColor(c)}
             />
           ))}

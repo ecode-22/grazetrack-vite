@@ -15,8 +15,10 @@ explicitly.
 - **Data model**: `Field`, `GrazingEvent`, `AnimalGroup` types match
   `gt-data.js` exactly (`areaHa`, `restTarget`, `maxAUperHa`, GeoJSON
   `geometry`, etc.) — not the invented shape from my first pass.
-- **Storage**: three separate `localStorage` keys (`gt_fields`, `gt_events`,
-  `gt_groups`), same as `gt-data.js` — not a single blob.
+- **Storage**: separate local records for fields, grazing events, animal
+  groups, and the farm profile. Signed-in records are namespaced by Django
+  user; the first account sign-in carries existing device data into that
+  account without exposing it to another user.
 - **Status/readiness logic**: `getStatus()` / `getReadinessPct()` in
   `src/lib/status.ts` are line-for-line ports, including the exact CSS
   status classes (`grazing`/`ready`/`resting`/`danger`/`none`).
@@ -67,27 +69,48 @@ rather than silently doing nothing.
 - `src/lib/localStore.ts` is the only source of truth the UI reads from —
   every write is instant, synchronous `localStorage`, no network involved.
 - `src/lib/sync.ts` debounces (2.5s) a push of the fields, events, animal
-  groups, and farm profile to Supabase's `gt_user_data` table while online, and pulls-and-merges
+  groups, and farm profile to the Django API while online, and pulls-and-merges
   (last-write-wins by a local change timestamp) on reconnect.
+- Django handles registration, login, and per-account API access. It stores
+  password hashes and farm data in its own tables on Supabase PostgreSQL.
+- Account settings show the signed-in email and farm, allow password changes,
+  revoke other sessions after a password update, and provide sign-out.
 - `vite-plugin-pwa` precaches the app shell and runtime-caches OpenStreetMap
   tiles, so the map and all data work with zero connectivity.
-- Supabase is optional — with no `.env.local`, sync is a no-op and the app
-  is fully usable offline-only.
+- The backend is only needed for accounts and multi-device sync; the app remains
+  usable offline without it.
 
 ## Setup
 
 ```bash
 npm install
-cp .env.local.example .env.local   # optional — leave blank to stay offline-only
+cp .env.local.example .env.local
+python -m venv backend/.venv
+source backend/.venv/bin/activate
+pip install -r backend/requirements.txt
+cp backend/.env.example backend/.env
+python backend/manage.py migrate
+python backend/manage.py runserver
+# In another terminal:
 npm run dev
 ```
 
-Run `sql/schema.sql` in a new Supabase project to enable sync. For an existing
-project, run this migration in the SQL Editor so the app can sync farm profiles:
+Set `DATABASE_URL` in `backend/.env` to the connection string from your Supabase
+project's **Connect** dialog. Use a direct or session-pooler PostgreSQL URL with
+SSL enabled. Django migrations create the account and farm-data tables in that
+database; do not enable Supabase Auth or expose the database URL to the browser.
+The frontend calls Django at `http://localhost:8000/api` by default. Set
+`VITE_API_URL` in `.env.local` to change it. For deployment, set a strong
+`DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, `DJANGO_ALLOWED_HOSTS`, and
+`CORS_ALLOWED_ORIGINS` for the deployed frontend and API domains.
 
-```sql
-alter table gt_user_data add column if not exists farm jsonb;
-```
+`sql/schema.sql` documents that the database schema is managed by Django's
+migrations, not applied manually in the Supabase SQL editor.
+
+Existing Supabase Auth accounts are not imported automatically. Create a Django
+account in the app before enabling sync; existing Supabase tables are left
+untouched. Run backend checks with `backend/.venv/bin/python
+backend/manage.py test farmdata.tests`.
 
 ## Notes
 
@@ -96,5 +119,5 @@ alter table gt_user_data add column if not exists farm jsonb;
 - PWA manifest icons (`/icons/icon-192.png`, `-512.png`) aren't included —
   drop your app icons into `public/icons/`.
 - `npm run build` currently warns about a >500kB JS chunk (Leaflet +
-  Leaflet-Draw + Supabase bundled together). Harmless, but if it matters,
+  Leaflet-Draw and mapping code together). Harmless, but if it matters,
   the fix is code-splitting the map into a lazy `React.lazy()` import.

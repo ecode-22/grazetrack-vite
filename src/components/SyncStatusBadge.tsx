@@ -21,7 +21,7 @@ export default function SyncStatusBadge() {
   }, []);
 
   return (
-    <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs text-white/80">
+    <span className={`sync-status sync-status-${status}`} role="status">
       {LABEL[status]}
     </span>
   );

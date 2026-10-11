@@ -1,47 +1,5 @@
--- ============================================================
---  GrazingTrack — Supabase schema
---  Paste this into your Supabase project:
---  Dashboard → SQL Editor → New query → paste → Run
--- ============================================================
-
--- One row per user, stores all their app data as JSON arrays.
--- This mirrors the existing localStorage structure exactly.
-
-create table if not exists gt_user_data (
-    user_id    uuid primary key references auth.users(id) on delete cascade,
-    fields     jsonb not null default '[]',
-    events     jsonb not null default '[]',
-    groups     jsonb not null default '[]',
-    farm       jsonb,
-    updated_at timestamptz default now()
-);
-
-alter table gt_user_data add column if not exists farm jsonb;
-
--- Row Level Security: every user sees ONLY their own row
-alter table gt_user_data enable row level security;
-
-create policy "Users read own data"
-    on gt_user_data for select
-    using (auth.uid() = user_id);
-
-create policy "Users insert own data"
-    on gt_user_data for insert
-    with check (auth.uid() = user_id);
-
-create policy "Users update own data"
-    on gt_user_data for update
-    using (auth.uid() = user_id);
-
--- Auto-update the updated_at column on every change
-create or replace function gt_touch_updated_at()
-returns trigger language plpgsql as $$
-begin
-    new.updated_at = now();
-    return new;
-end;
-$$;
-
-create trigger gt_user_data_updated
-    before update on gt_user_data
-    for each row execute procedure gt_touch_updated_at();
+-- GrazingTrack's PostgreSQL schema is managed by Django migrations.
+-- Configure DATABASE_URL with the Supabase PostgreSQL connection string,
+-- then run: python backend/manage.py migrate
+-- Do not run Supabase Auth/RLS SQL here: Django authenticates API requests
+-- with JWTs and enforces ownership in the backend.

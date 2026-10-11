@@ -72,17 +72,19 @@ export default function Dashboard({ onSelectField }: Props) {
               {fields.map((f) => {
                 const s = getStatus(f);
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={f.id}
                     className="status-tile"
                     style={{ background: statusFillColor(f, s) }}
                     onClick={() => onSelectField(f.id)}
+                    aria-label={`${f.name}, ${f.areaHa.toFixed(1)} hectares, ${s.label}. Show on map`}
                   >
-                    <div className="status-tile-name">{f.name}</div>
-                    <div className="status-tile-sub">
+                    <span className="status-tile-name">{f.name}</span>
+                    <span className="status-tile-sub">
                       {f.areaHa.toFixed(1)} ha · {s.label}
-                    </div>
-                  </div>
+                    </span>
+                  </button>
                 );
               })}
             </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase, supabaseConfigured } from '@/lib/supabase';
-import { pullFromSupabaseIfNewer } from '@/lib/sync';
+import { authenticate } from '@/lib/api';
+import { pullFromApiIfNewer } from '@/lib/sync';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -21,37 +21,13 @@ export default function Login() {
   };
   const cardStyle: React.CSSProperties = { width: '100%', maxWidth: 360 };
 
-  if (!supabaseConfigured()) {
-    return (
-      <div style={wrapStyle}>
-        <div className="card" style={cardStyle}>
-          <div className="card-title">Sync isn't configured</div>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>
-            No Supabase env vars found — but the app works fully offline without an account.
-          </p>
-          <Link to="/" className="btn-primary" style={{ marginTop: 14, display: 'inline-block', textAlign: 'center' }}>
-            Back to the map
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setBusy(true);
     try {
-      const result = mode === 'signin'
-        ? await supabase!.auth.signInWithPassword({ email: email.trim(), password })
-        : await supabase!.auth.signUp({ email: email.trim(), password });
-      if (result.error) throw result.error;
-      if (!result.data.session) {
-        setMode('signin');
-        setError('Check your email for a confirmation link, then sign in to continue.');
-        return;
-      }
-      await pullFromSupabaseIfNewer();
+      await authenticate(email, password, mode);
+      await pullFromApiIfNewer();
       navigate('/');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not connect to the account service. Check your connection and try again.');

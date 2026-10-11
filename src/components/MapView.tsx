@@ -3,7 +3,7 @@ import L from 'leaflet';
 import 'leaflet-draw';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
-import { loadEvents, loadFields, saveFields, nextColor, onDataChanged } from '@/lib/localStore';
+import { loadEvents, loadFields, loadFarmProfile, saveFields, nextColor, onDataChanged } from '@/lib/localStore';
 import { getStatus } from '@/lib/status';
 import { calcAreaHa } from '@/lib/geo';
 import type { Field, FieldGeometry, FieldType } from '@/lib/types';
@@ -70,7 +70,11 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const map = L.map(containerRef.current).setView([-33.9, 18.5], 15);
+    const location = loadFarmProfile()?.location;
+    const mapCenter: L.LatLngExpression = location
+      ? [location.latitude, location.longitude]
+      : [-33.9, 18.5];
+    const map = L.map(containerRef.current).setView(mapCenter, 15);
     mapRef.current = map;
 
     const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

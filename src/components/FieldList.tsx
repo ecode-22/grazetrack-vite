@@ -25,20 +25,22 @@ export default function FieldList({ selectedFieldId, onSelect }: Props) {
       {fields.map((f) => {
         const s = getStatus(f);
         return (
-          <div
+          <button
+            type="button"
             key={f.id}
             className={`field-item${selectedFieldId === f.id ? ' selected' : ''}`}
             onClick={() => onSelect(f.id)}
+            aria-pressed={selectedFieldId === f.id}
           >
             <span className="field-dot" style={{ background: f.color }} />
-            <div className="field-item-info">
-              <div className="field-item-name">{f.name}</div>
-              <div className="field-item-meta">
+            <span className="field-item-info">
+              <span className="field-item-name">{f.name}</span>
+              <span className="field-item-meta">
                 {f.areaHa.toFixed(1)} ha · {cap(f.type)}
-              </div>
-            </div>
+              </span>
+            </span>
             <span className={`pill pill-${s.cls}`}>{s.label}</span>
-          </div>
+          </button>
         );
       })}
     </div>
