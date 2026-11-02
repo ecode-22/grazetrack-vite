@@ -29,6 +29,20 @@ interface NameDetails {
   maxAUperHa: number | null;
 }
 
+interface CampSettings {
+  name: string;
+  areaHa: number;
+  restTarget: number;
+}
+
+function makeCampSettings(geometries: FieldGeometry[], previous: CampSettings[], firstNumber: number): CampSettings[] {
+  return geometries.map((geometry, index) => ({
+    name: previous[index]?.name || `Paddock ${String(firstNumber + index).padStart(2, '0')}`,
+    areaHa: calcAreaHa(geometry),
+    restTarget: previous[index]?.restTarget ?? 42,
+  }));
+}
+
 type ModalState =
   | { type: 'name' }
   | { type: 'edit'; fieldId: string }
@@ -53,6 +67,8 @@ export default function Home() {
   const [splitBoundary, setSplitBoundary] = useState<FieldGeometry | null>(null);
   const [splitCount, setSplitCount] = useState(4);
   const [splitDirection, setSplitDirection] = useState<SplitDirection>('balanced');
+  const [splitAngle, setSplitAngle] = useState(0);
+  const [campSettings, setCampSettings] = useState<CampSettings[]>([]);
   const [ndviEnabled, setNdviEnabled] = useState(false);
   const [ndviDate, setNdviDate] = useState(() => {
     const date = new Date();
@@ -62,10 +78,19 @@ export default function Home() {
   const [ndviOpacity, setNdviOpacity] = useState(0.7);
   const [pressureEnabled, setPressureEnabled] = useState(false);
   const campGeometries = useMemo(
-    () => splitBoundary ? createCampGeometries(splitBoundary, splitCount, splitDirection) : [],
-    [splitBoundary, splitCount, splitDirection],
+    () => splitBoundary
+      ? createCampGeometries(
+        splitBoundary,
+        splitCount,
+        splitDirection,
+        campSettings.length === splitCount ? campSettings.map((camp) => camp.areaHa) : undefined,
+        splitAngle,
+      )
+      : [],
+    [splitBoundary, splitCount, splitDirection, campSettings, splitAngle],
   );
   const campAreas = useMemo(() => campGeometries.map(calcAreaHa), [campGeometries]);
+  const campNames = useMemo(() => campSettings.map((camp) => camp.name), [campSettings]);
   const campAreaRange = campAreas.length
     ? `${Math.min(...campAreas).toFixed(1)}–${Math.max(...campAreas).toFixed(1)} ha each`
     : 'No paddocks fit inside this boundary';
@@ -100,6 +125,7 @@ export default function Home() {
     mapRef.current?.cancelPendingField();
     setSplitBoundary(null);
     setSplitCount(4);
+    setSplitAngle(0);
     setToolState('select');
     setStatusText(DEFAULT_HINT);
   }
@@ -123,9 +149,20 @@ export default function Home() {
   }
 
   function handleBoundaryDrawn(geometry: FieldGeometry) {
+    const defaults = createCampGeometries(geometry, splitCount, splitDirection, undefined, splitAngle);
+    setCampSettings(makeCampSettings(defaults, [], loadFields().length + 1));
     setSplitBoundary(geometry);
     setToolState('select');
     setStatusText('Preview the paddock layout, then create it when the sizes look right.');
+  }
+
+  function changeSplitCount(nextCount: number) {
+    const count = Math.min(16, Math.max(2, nextCount));
+    setSplitCount(count);
+    if (!splitBoundary) return;
+    const defaults = createCampGeometries(splitBoundary, count, splitDirection, undefined, splitAngle);
+    const firstNewNumber = loadFields().length + 1;
+    setCampSettings((previous) => makeCampSettings(defaults, previous, firstNewNumber));
   }
 
   function handleCreateCamps() {
@@ -133,9 +170,9 @@ export default function Home() {
     const currentFields = loadFields();
     const created = campGeometries.map((geometry, index) => ({
       id: uid(),
-      name: `Paddock ${String(currentFields.length + index + 1).padStart(2, '0')}`,
+      name: campSettings[index]?.name.trim() || `Paddock ${String(currentFields.length + index + 1).padStart(2, '0')}`,
       type: 'pasture' as FieldType,
-      restTarget: 42,
+      restTarget: campSettings[index]?.restTarget || 42,
       maxAUperHa: null,
       geometry,
       areaHa: calcAreaHa(geometry),
@@ -146,6 +183,21 @@ export default function Home() {
     mapRef.current?.cancelPendingField();
     setSplitBoundary(null);
     setStatusText(`${created.length} paddocks created`);
+  }
+
+  function updateCampArea(index: number, requestedArea: number) {
+    if (!splitBoundary || campSettings.length < 2) return;
+    const minimumArea = 0.01;
+    const totalArea = calcAreaHa(splitBoundary);
+    const maxArea = Math.max(minimumArea, totalArea - minimumArea * (campSettings.length - 1));
+    const area = Math.min(maxArea, Math.max(minimumArea, Number.isFinite(requestedArea) ? requestedArea : minimumArea));
+    const otherTotal = campSettings.reduce((sum, camp, campIndex) => campIndex === index ? sum : sum + camp.areaHa, 0);
+    const remaining = totalArea - area;
+    setCampSettings((current) => current.map((camp, campIndex) => {
+      if (campIndex === index) return { ...camp, areaHa: area };
+      const share = otherTotal > 0 ? camp.areaHa / otherTotal : 1 / (current.length - 1);
+      return { ...camp, areaHa: remaining * share };
+    }));
   }
 
   function handleDeleteSelected() {
@@ -229,6 +281,7 @@ export default function Home() {
             onStatus={setStatusText}
             onBoundaryDrawn={handleBoundaryDrawn}
             previewGeometries={campGeometries}
+            previewNames={campNames}
             ndviEnabled={ndviEnabled}
             ndviDate={ndviDate}
             ndviOpacity={ndviOpacity}
@@ -244,11 +297,11 @@ export default function Home() {
                 <section className="as-section">
                   <div className="as-section-title">Paddocks to create <span className="as-section-hint">2–16</span></div>
                   <div className="as-count-input-row">
-                    <button className="as-count-btn" onClick={() => setSplitCount((count) => Math.max(2, count - 1))} aria-label="Fewer paddocks">−</button>
-                    <input className="as-count-input" type="number" min="2" max="16" value={splitCount} onChange={(event) => setSplitCount(Math.min(16, Math.max(2, Number(event.target.value) || 2)))} aria-label="Number of paddocks" />
-                    <button className="as-count-btn" onClick={() => setSplitCount((count) => Math.min(16, count + 1))} aria-label="More paddocks">+</button>
+                    <button className="as-count-btn" onClick={() => changeSplitCount(splitCount - 1)} aria-label="Fewer paddocks">−</button>
+                    <input className="as-count-input" type="number" min="2" max="16" value={splitCount} onChange={(event) => changeSplitCount(Number(event.target.value) || 2)} aria-label="Number of paddocks" />
+                    <button className="as-count-btn" onClick={() => changeSplitCount(splitCount + 1)} aria-label="More paddocks">+</button>
                   </div>
-                  <input className="as-count-slider" type="range" min="2" max="16" value={splitCount} onChange={(event) => setSplitCount(Number(event.target.value))} aria-label="Number of paddocks" />
+                  <input className="as-count-slider" type="range" min="2" max="16" value={splitCount} onChange={(event) => changeSplitCount(Number(event.target.value))} aria-label="Number of paddocks" />
                 </section>
                 <section className="as-section">
                   <div className="as-section-title">Layout style</div>
@@ -258,15 +311,54 @@ export default function Home() {
                     <button className={`as-dir-btn${splitDirection === 'horizontal' ? ' active' : ''}`} onClick={() => setSplitDirection('horizontal')} aria-pressed={splitDirection === 'horizontal'} title="Create long paddocks running east to west">↔ Long E–W</button>
                   </div>
                 </section>
-                <div className="as-preview-areas" aria-label="Paddock area preview">
-                  {campAreas.map((area, index) => (
-                    <div className="as-preview-area" key={index}>
-                      <span className="as-preview-dot" style={{ background: COLORS[(loadFields().length + index) % COLORS.length] }} />
-                      <span>Paddock {String(index + 1).padStart(2, '0')}</span>
-                      <strong>{area.toFixed(1)} ha</strong>
-                    </div>
-                  ))}
-                </div>
+                <section className="as-section">
+                  <div className="as-section-title">Boundary angle <span className="as-section-hint">{splitAngle > 0 ? '+' : ''}{splitAngle}° (±45° max)</span></div>
+                  <input
+                    className="as-angle-slider"
+                    type="range"
+                    min="-45"
+                    max="45"
+                    step="1"
+                    value={splitAngle}
+                    onChange={(event) => setSplitAngle(Number(event.target.value))}
+                    aria-label="Paddock boundary angle"
+                  />
+                  <div className="as-angle-ticks" aria-hidden="true"><span>-45°</span><span>0°</span><span>+45°</span></div>
+                </section>
+                <section className="as-section">
+                  <div className="as-section-title">Paddock details <span className="as-section-hint">Total {splitBoundary ? calcAreaHa(splitBoundary).toFixed(1) : '0.0'} ha</span></div>
+                  <div className="as-camp-list">
+                    {campGeometries.map((_geometry, index) => {
+                      const settings = campSettings[index];
+                      return (
+                        <div className="as-camp-card" key={index}>
+                          <div className="as-camp-name-row">
+                            <span className="as-preview-dot" style={{ background: COLORS[(loadFields().length + index) % COLORS.length] }} />
+                            <input
+                              className="as-name-input"
+                              type="text"
+                              maxLength={40}
+                              value={settings?.name ?? ''}
+                              onChange={(event) => setCampSettings((current) => current.map((camp, campIndex) => campIndex === index ? { ...camp, name: event.target.value } : camp))}
+                              aria-label={`Paddock ${index + 1} name`}
+                            />
+                          </div>
+                          <div className="as-camp-fields">
+                            <label className="as-camp-field">
+                              <span>Size (ha)</span>
+                              <input type="number" min="0.01" step="0.1" value={settings?.areaHa ?? 0} onChange={(event) => updateCampArea(index, Number(event.target.value))} />
+                            </label>
+                            <label className="as-camp-field">
+                              <span>Rest (days)</span>
+                              <input type="number" min="1" max="365" step="1" value={settings?.restTarget ?? 42} onChange={(event) => setCampSettings((current) => current.map((camp, campIndex) => campIndex === index ? { ...camp, restTarget: Math.min(365, Math.max(1, Number(event.target.value) || 1)) } : camp))} />
+                            </label>
+                          </div>
+                          <small className="as-camp-actual">Preview area: {campAreas[index]?.toFixed(1) ?? '0.0'} ha</small>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
                 <div className="as-preview-summary" aria-live="polite">
                   <strong>{campGeometries.length} paddocks previewed</strong>
                   <span>{campAreaRange}</span>

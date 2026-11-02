@@ -25,6 +25,7 @@ interface Props {
   onFieldDrawn: () => void;
   onBoundaryDrawn: (geometry: FieldGeometry) => void;
   previewGeometries: FieldGeometry[];
+  previewNames: string[];
   ndviEnabled: boolean;
   ndviDate: string;
   ndviOpacity: number;
@@ -46,7 +47,7 @@ function statusFillColor(field: Field): string {
 }
 
 const MapView = forwardRef<MapViewHandle, Props>(function MapView(
-  { selectedFieldId, onSelectField, onDeselect, tool, onFieldDrawn, onBoundaryDrawn, previewGeometries, ndviEnabled, ndviDate, ndviOpacity, pressureEnabled, onVertexCount, onStatus },
+  { selectedFieldId, onSelectField, onDeselect, tool, onFieldDrawn, onBoundaryDrawn, previewGeometries, previewNames, ndviEnabled, ndviDate, ndviOpacity, pressureEnabled, onVertexCount, onStatus },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -224,12 +225,12 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
       }).addTo(group);
       preview.eachLayer((layer) => {
         layer.bindTooltip(
-          `P${String(index + 1).padStart(2, '0')}`,
+          previewNames[index]?.trim() || `P${String(index + 1).padStart(2, '0')}`,
           { permanent: true, direction: 'center', className: 'camp-lbl', opacity: 1 },
         );
       });
     });
-  }, [previewGeometries]);
+  }, [previewGeometries, previewNames]);
 
   useEffect(() => {
     const map = mapRef.current;
