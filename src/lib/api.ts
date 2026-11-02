@@ -1,8 +1,11 @@
 import type { AnimalGroup, FarmProfile, Field, GrazingEvent } from './types';
 import { setActiveAccount } from './localStore';
 
+const DEFAULT_API_HOST = typeof window !== 'undefined' && window.location.hostname
+  ? window.location.hostname
+  : 'localhost';
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '')
-  || 'http://localhost:8000/api';
+  || `http://${DEFAULT_API_HOST}:8000/api`;
 const ACCESS_TOKEN_KEY = 'gt_api_access';
 const REFRESH_TOKEN_KEY = 'gt_api_refresh';
 
@@ -37,6 +40,7 @@ export function clearApiSession() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   setActiveAccount(null);
+  window.dispatchEvent(new CustomEvent('gt:auth-changed'));
 }
 
 async function responseError(response: Response) {
@@ -47,16 +51,34 @@ async function responseError(response: Response) {
   return new Error(typeof firstMessage === 'string' ? firstMessage : `Request failed (${response.status}).`);
 }
 
-export async function authenticate(email: string, password: string, mode: AuthMode) {
+export async function authenticate(email: string, password: string, mode: AuthMode, confirmPassword?: string, fullName?: string) {
   const response = await fetch(`${API_URL}/auth/${mode === 'signin' ? 'login' : 'register'}/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email.trim(), password }),
+    body: JSON.stringify({
+      email: email.trim(),
+      password,
+      ...(mode === 'signup' ? { confirm_password: confirmPassword, full_name: fullName?.trim() } : {}),
+    }),
   });
   if (!response.ok) throw await responseError(response);
   const tokens = await response.json() as TokenResponse;
   setActiveAccount(tokens.user.id);
   saveTokens(tokens);
+}
+
+export function requestPasswordReset(email: string) {
+  return apiRequest<{ detail: string }>('/auth/password-reset/', {
+    method: 'POST',
+    body: JSON.stringify({ email: email.trim() }),
+  });
+}
+
+export function confirmPasswordReset(uid: string, token: string, password: string, confirmPassword: string) {
+  return apiRequest<{ detail: string }>('/auth/password-reset/confirm/', {
+    method: 'POST',
+    body: JSON.stringify({ uid, token, password, confirm_password: confirmPassword }),
+  });
 }
 
 export function getCurrentAccount() {

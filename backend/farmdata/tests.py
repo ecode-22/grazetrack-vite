@@ -1,5 +1,9 @@
+from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
+from django.contrib.auth import get_user_model
+from django.core import mail
+from django.test import override_settings
 from rest_framework.test import APITestCase
 
 
@@ -13,12 +17,75 @@ class FarmDataApiTests(APITestCase):
 
     def create_account(self):
         response = self.client.post('/api/auth/register/', {
+            'full_name': 'Test Farmer',
             'email': f'{uuid4().hex}@example.com',
             'password': self.password,
+            'confirm_password': self.password,
         }, format='json')
         self.assertEqual(response.status_code, 201, response.data)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
         return response
+
+    def test_registration_requires_matching_password_confirmation(self):
+        email = f'{uuid4().hex}@example.com'
+        response = self.client.post('/api/auth/register/', {
+            'full_name': 'Test Farmer',
+            'email': email,
+            'password': self.password,
+            'confirm_password': 'Different-Trail-85!',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('confirm_password', response.data)
+        self.assertFalse(get_user_model().objects.filter(email=email).exists())
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_registration_sends_welcome_email(self):
+        response = self.create_account()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [response.data['user']['email']])
+        self.assertIn('Welcome to GrazingTrack', mail.outbox[0].subject)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_password_reset_sends_expiring_link_and_changes_password_once(self):
+        registration = self.create_account()
+        account_email = registration.data['user']['email']
+        self.client.credentials()
+        response = self.client.post('/api/auth/password-reset/', {'email': account_email}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('If an account exists', response.data['detail'])
+        reset_url = next(part for part in mail.outbox[-1].body.split() if 'reset-password?' in part)
+        query = parse_qs(urlsplit(reset_url).query)
+
+        response = self.client.post('/api/auth/password-reset/confirm/', {
+            'uid': query['uid'][0],
+            'token': query['token'][0],
+            'password': 'New-Safe-River-82!',
+            'confirm_password': 'New-Safe-River-82!',
+        }, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+
+        response = self.client.post('/api/auth/password-reset/confirm/', {
+            'uid': query['uid'][0],
+            'token': query['token'][0],
+            'password': 'Another-Safe-River-84!',
+            'confirm_password': 'Another-Safe-River-84!',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+
+        response = self.client.post('/api/auth/login/', {
+            'email': account_email,
+            'password': 'New-Safe-River-82!',
+        }, format='json')
+        self.assertEqual(response.status_code, 200)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_password_reset_does_not_disclose_unknown_email(self):
+        response = self.client.post('/api/auth/password-reset/', {
+            'email': f'{uuid4().hex}@example.com',
+        }, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('If an account exists', response.data['detail'])
+        self.assertEqual(len(mail.outbox), 0)
 
     def test_register_and_login(self):
         registration = self.create_account()
@@ -74,8 +141,10 @@ class FarmDataApiTests(APITestCase):
     def test_account_cannot_revoke_another_users_refresh_token(self):
         first_account = self.create_account()
         second_account = self.client.post('/api/auth/register/', {
+            'full_name': 'Second Farmer',
             'email': f'{uuid4().hex}@example.com',
             'password': self.password,
+            'confirm_password': self.password,
         }, format='json')
         self.assertEqual(second_account.status_code, 201)
 

@@ -58,7 +58,7 @@ faithfully is a project of its own, not a quick add-on:
 | PDF reports | `gt-dashboard.js` (jsPDF) | Placeholder — use Export → Events CSV instead |
 | Analytics tab / charts | `gt-analytics.js` | Placeholder panel only |
 | Rainfall/weather | `gt-rain.js` | Not ported |
-| First-run setup wizard | `setup.js` | Ported — choose one or multiple devices, then set farm name, animal groups, and device location |
+| First-run setup wizard | `setup.js` | Account sign-in or registration is required before setting up the farm name, animal groups, and device location |
 
 The tab bar still shows Rotation/Reports/Analytics (so the navigation feels
 the same) but each renders a clearly-labelled "not yet ported" placeholder
@@ -77,8 +77,8 @@ rather than silently doing nothing.
   revoke other sessions after a password update, and provide sign-out.
 - `vite-plugin-pwa` precaches the app shell and runtime-caches OpenStreetMap
   tiles, so the map and all data work with zero connectivity.
-- The backend is only needed for accounts and multi-device sync; the app remains
-  usable offline without it.
+- An account and reachable backend are required to enter the app. Once signed in,
+  farm data remains available offline and syncs when connectivity returns.
 
 ## Setup
 
@@ -90,7 +90,7 @@ source backend/.venv/bin/activate
 pip install -r backend/requirements.txt
 cp backend/.env.example backend/.env
 python backend/manage.py migrate
-python backend/manage.py runserver
+python backend/manage.py runserver 0.0.0.0:8000
 # In another terminal:
 npm run dev
 ```
@@ -103,6 +103,19 @@ The frontend calls Django at `http://localhost:8000/api` by default. Set
 `VITE_API_URL` in `.env.local` to change it. For deployment, set a strong
 `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, `DJANGO_ALLOWED_HOSTS`, and
 `CORS_ALLOWED_ORIGINS` for the deployed frontend and API domains.
+
+For testing from another device on your local network, the frontend's default
+API URL uses the same hostname as the Vite page. Add the computer's LAN IP to
+`DJANGO_ALLOWED_HOSTS` and add `http://<LAN-IP>:5173` to `CORS_ALLOWED_ORIGINS`
+in `backend/.env`, then run Django with `0.0.0.0:8000` as shown above. The
+frontend and API should both use HTTPS outside local development.
+
+Local email defaults to Django's console backend, which prints welcome and
+password-reset messages in the backend terminal. For real delivery, configure
+`EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`,
+`EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, and `DEFAULT_FROM_EMAIL` in
+`backend/.env`. Set `FRONTEND_URL` to the frontend's public URL so reset links
+open the right app.
 
 `sql/schema.sql` documents that the database schema is managed by Django's
 migrations, not applied manually in the Supabase SQL editor.

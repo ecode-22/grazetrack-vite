@@ -1232,6 +1232,135 @@ body {
 
 .weather-retry:hover { background: #fef3c7; }
 
+.weather-card { min-width: 0; }
+.weather-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.weather-heading .card-title { margin-bottom: 3px; }
+.weather-location { color: #758279; font-size: 11px; }
+.weather-refresh { width: 30px; height: 30px; flex: 0 0 30px; border: 1px solid #dce5dc; border-radius: 6px; background: #fff; color: #286747; font-size: 19px; line-height: 1; cursor: pointer; }
+.weather-refresh:hover:not(:disabled) { background: #eef5ee; }
+.weather-refresh:disabled { opacity: .5; cursor: wait; }
+.weather-empty, .weather-loading { color: #758279; font-size: 12px; }
+.weather-empty p { margin: 0 0 10px; }
+.weather-empty .weather-retry { margin-top: 0; }
+.weather-location-error { color: #92400e; }
+.weather-current { display: flex; align-items: center; gap: 13px; padding: 8px 0 16px; }
+.weather-current-symbol { width: 42px; color: #d97706; font-size: 34px; line-height: 1; text-align: center; }
+.weather-current-main { display: grid; gap: 2px; min-width: 0; }
+.weather-current-main strong { color: #244e38; font-family: Georgia, 'Times New Roman', serif; font-size: 30px; line-height: 1; }
+.weather-current-main span, .weather-current-wind span { color: #758279; font-size: 11px; }
+.weather-current-wind { display: grid; gap: 3px; margin-left: auto; text-align: right; }
+.weather-current-wind strong { color: #355a43; font-size: 12px; }
+.weather-forecast { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid #e6ece6; }
+.weather-day { display: grid; justify-items: center; align-content: start; gap: 5px; min-width: 0; padding: 12px 4px 0; text-align: center; }
+.weather-day + .weather-day { border-left: 1px solid #e6ece6; }
+.weather-day-name { color: #355a43; font-size: 11px; font-weight: 700; }
+.weather-day-symbol { height: 23px; color: #d97706; font-size: 19px; line-height: 1; }
+.weather-day-condition { min-height: 26px; color: #758279; font-size: 9px; line-height: 1.3; }
+.weather-day-temp { color: #244e38; font-size: 12px; }
+.weather-day-temp span { color: #829087; font-weight: 500; }
+.weather-day-wind { color: #758279; font-size: 9px; white-space: nowrap; }
+.weather-updating { display: block; margin-top: 8px; color: #829087; font-size: 10px; text-align: right; }
+.auth-loading { display: grid; min-height: 100vh; place-items: center; background: var(--bg); color: var(--text-secondary); font-size: 14px; }
+.password-reset-page { display: flex; min-height: 100vh; align-items: center; justify-content: center; padding: 20px; background: var(--bg); }
+.password-reset-card { display: grid; width: min(100%, 390px); gap: 12px; }
+.password-reset-card .card-title { margin-bottom: 0; }
+.password-reset-copy { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.password-reset-card .fg { margin: 0; }
+.password-reset-card .fg label { color: #53685a; font-size: 11px; }
+.password-reset-submit { width: 100%; }
+.auth-text-link { display: block; margin-top: 12px; color: #286747; font-size: 12px; text-align: center; text-decoration: none; }
+.auth-text-link:hover { text-decoration: underline; }
+.account-reset-link { justify-self: start; padding: 5px 0; border: 0; background: transparent; color: #286747; font-size: 12px; font-weight: 600; cursor: pointer; }
+.account-reset-link:hover:not(:disabled) { text-decoration: underline; }
+.account-reset-link:disabled { opacity: .6; cursor: wait; }
+
+.auth-screen {
+    --auth-forest: #173d31;
+    --auth-green: #286747;
+    --auth-ink: #172a21;
+    --auth-muted: #738178;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: clamp(24px, 5vh, 48px);
+    min-height: 100vh;
+    padding: 30px clamp(20px, 6vw, 88px) 20px;
+    background:
+        radial-gradient(ellipse at 9% 92%, rgba(161, 197, 165, .28), transparent 34%),
+        radial-gradient(ellipse at 90% 5%, rgba(172, 202, 180, .24), transparent 32%),
+        #e9f0e9;
+    color: var(--auth-ink);
+    font-family: var(--font);
+}
+.auth-brand { display: flex; align-items: center; gap: 10px; width: min(100%, 1120px); margin: 0 auto; color: var(--auth-forest); font-size: 17px; font-weight: 800; }
+.auth-brand-mark { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 7px; background: var(--auth-green); color: #fff; font-family: Georgia, 'Times New Roman', serif; font-size: 21px; }
+.auth-brand-caption { margin-left: 5px; padding-left: 14px; border-left: 1px solid #cbd8cc; color: #77877b; font-size: 9px; font-weight: 700; letter-spacing: .12em; }
+.auth-panel { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(320px, .92fr); width: min(100%, 1120px); min-height: 510px; margin: auto; overflow: hidden; border: 1px solid rgba(255,255,255,.82); border-radius: 9px; background: #fff; box-shadow: 0 24px 70px rgba(30, 66, 45, .13); animation: auth-enter .45s ease both; }
+.auth-form { display: flex; flex-direction: column; justify-content: center; padding: clamp(30px, 5vw, 66px); }
+.auth-eyebrow { color: #64816d; font-size: 10px; font-weight: 800; letter-spacing: .15em; }
+.auth-form h1 { margin: 12px 0 7px; color: var(--auth-ink); font-family: Georgia, 'Times New Roman', serif; font-size: clamp(31px, 4vw, 42px); font-weight: 600; line-height: 1.1; }
+.auth-description { max-width: 370px; margin: 0 0 24px; color: var(--auth-muted); font-size: 13px; line-height: 1.6; }
+.auth-fields { display: grid; gap: 13px; }
+.auth-field { display: grid; gap: 6px; }
+.auth-field label { color: #405348; font-size: 11px; font-weight: 700; }
+.auth-field input { width: 100%; min-width: 0; height: 44px; padding: 0 13px; border: 1px solid #dce5dc; border-radius: 5px; outline: none; background: #f9fbf9; color: var(--auth-ink); font: inherit; font-size: 13px; transition: border-color .16s ease, box-shadow .16s ease, background .16s ease; }
+.auth-field input::placeholder { color: #9aa79d; }
+.auth-field input:focus { border-color: #43835c; background: #fff; box-shadow: 0 0 0 3px rgba(67,131,92,.13); }
+.auth-error { margin: 12px 0 0; color: #b13e35; font-size: 12px; line-height: 1.45; }
+.auth-actions { display: grid; justify-items: start; gap: 15px; margin-top: 20px; }
+.auth-submit { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 46px; padding: 0 16px; border: 0; border-radius: 5px; background: var(--auth-forest); color: white; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: background .18s ease, transform .18s ease; }
+.auth-submit span { font-size: 18px; font-weight: 400; }
+.auth-submit:hover:not(:disabled) { transform: translateY(-1px); background: #225941; }
+.auth-submit:disabled { opacity: .68; cursor: progress; }
+.auth-switch { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; color: #748178; font-size: 11px; }
+.auth-switch button, .auth-forgot { padding: 0; border: 0; background: transparent; color: var(--auth-green); font: inherit; font-size: 11px; font-weight: 700; text-decoration: none; cursor: pointer; }
+.auth-switch button:hover, .auth-forgot:hover { text-decoration: underline; }
+.auth-art { position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 510px; overflow: hidden; padding: 24px 28px 30px; background: #173d31; color: #f4f7f1; }
+.auth-art::before { position: absolute; inset: 0; background: radial-gradient(ellipse at 60% 44%, rgba(119,163,117,.2), transparent 52%); content: ''; pointer-events: none; }
+.auth-art-top, .auth-art-copy { position: relative; z-index: 1; }
+.auth-art-top { display: flex; justify-content: space-between; color: #a9c1ad; font-size: 9px; font-weight: 700; letter-spacing: .14em; }
+.auth-field-illustration { position: absolute; inset: 72px 10px 118px; overflow: hidden; }
+.auth-sun { position: absolute; top: 17%; right: 23%; width: 42px; aspect-ratio: 1; border-radius: 50%; background: #d6bd78; box-shadow: 0 0 38px rgba(214,189,120,.2); }
+.auth-hill { position: absolute; right: -14%; bottom: -27%; left: -12%; height: 75%; clip-path: polygon(0 53%, 17% 36%, 31% 45%, 52% 13%, 70% 40%, 87% 28%, 100% 48%, 100% 100%, 0 100%); }
+.hill-back { bottom: 1%; background: #315d45; }
+.hill-mid { bottom: -12%; transform: translateX(-8%); background: #47764e; opacity: .92; }
+.hill-front { bottom: -24%; transform: translateX(8%); background: #72915a; }
+.auth-contour { position: absolute; z-index: 1; right: -18%; bottom: -5%; left: -18%; height: 43%; border: 1px solid rgba(232,239,213,.34); border-radius: 50%; transform: rotate(-8deg); }
+.contour-two { right: -11%; bottom: -13%; left: -25%; height: 50%; transform: rotate(7deg); }
+.auth-field-label { position: absolute; z-index: 2; right: 12%; bottom: 31%; display: grid; gap: 4px; padding: 10px 13px; border: 1px solid rgba(239,245,233,.3); border-radius: 4px; background: rgba(23,61,49,.78); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: .08em; }
+.auth-field-label span { color: #bdcfb6; font-size: 8px; font-weight: 500; }
+.auth-art-copy > span { color: #abc2ad; font-size: 9px; font-weight: 700; letter-spacing: .14em; }
+.auth-art-copy p { margin: 8px 0 0; color: #f3f5ed; font-family: Georgia, 'Times New Roman', serif; font-size: 25px; line-height: 1.22; }
+.auth-footer { display: flex; justify-content: space-between; width: min(100%, 1120px); margin: 0 auto; color: #718176; font-size: 10px; }
+@keyframes auth-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 760px) {
+    .auth-screen { gap: 18px; min-height: 100svh; padding: 18px 14px 14px; }
+    .auth-panel { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+    .auth-form { padding: 28px clamp(20px, 7vw, 42px); }
+    .auth-art { min-height: 190px; padding: 17px 22px 19px; }
+    .auth-field-illustration { inset: 35px 0 40px; }
+    .auth-sun { top: 3%; right: 18%; width: 30px; }
+    .auth-field-label { right: 14%; bottom: 17%; }
+    .auth-art-copy p { font-size: 20px; }
+}
+@media (max-width: 420px) {
+    .auth-brand-caption { display: none; }
+    .auth-form { padding: 24px 18px; }
+    .auth-form h1 { font-size: 31px; }
+    .auth-art { min-height: 165px; }
+    .auth-footer { font-size: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .auth-panel { animation: none; }
+    .auth-field input, .auth-submit { transition: none; }
+}
+
+@media (max-width: 400px) {
+    .weather-day-wind { font-size: 8px; }
+    .weather-current { gap: 8px; }
+    .weather-current-wind strong { font-size: 11px; }
+}
+
 
 /* ── Status Grid ────────────────────────────────────────────── */
 

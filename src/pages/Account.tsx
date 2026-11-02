@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { changeAccountPassword, getCurrentAccount, hasApiSession, logoutAccount, type AccountInfo } from '@/lib/api';
+import { changeAccountPassword, getCurrentAccount, hasApiSession, logoutAccount, requestPasswordReset, type AccountInfo } from '@/lib/api';
 import { loadFarmProfile } from '@/lib/localStore';
 
 export default function Account() {
@@ -8,6 +8,7 @@ export default function Account() {
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -52,6 +53,21 @@ export default function Account() {
     navigate('/', { replace: true });
   }
 
+  async function handleResetEmail() {
+    if (!account) return;
+    setError('');
+    setNotice('');
+    setResetBusy(true);
+    try {
+      const result = await requestPasswordReset(account.email);
+      setNotice(result.detail);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not send a password reset email.');
+    } finally {
+      setResetBusy(false);
+    }
+  }
+
   const farm = loadFarmProfile();
 
   return (
@@ -85,6 +101,9 @@ export default function Account() {
             {error && <p className="account-message error" role="alert">{error}</p>}
             {notice && <p className="account-message success" role="status">{notice}</p>}
             <button className="btn-primary account-password-submit" type="submit" disabled={busy || loading || !account}>{busy ? 'Updating…' : 'Update password'}</button>
+            <button type="button" className="account-reset-link" onClick={() => void handleResetEmail()} disabled={resetBusy || loading || !account}>
+              {resetBusy ? 'Sending reset email…' : 'Email me a password reset link'}
+            </button>
           </form>
         </section>
       </div>

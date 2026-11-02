@@ -1,66 +1,18 @@
 import { useState } from 'react';
-import { authenticate, hasApiSession } from '@/lib/api';
-import { pullFromApiIfNewer } from '@/lib/sync';
 import { saveFarmProfile, saveGroups } from '@/lib/localStore';
 import { uid } from '@/lib/utils';
 import type { AnimalGroup, FarmProfile } from '@/lib/types';
 
-type DeviceMode = FarmProfile['deviceMode'];
 type GroupDraft = { name: string; type: AnimalGroup['type']; count: string; herd: string };
 
 const blankGroup = (): GroupDraft => ({ name: '', type: 'cattle', count: '', herd: '' });
 
 export default function Onboarding({ onComplete }: { onComplete: () => void }) {
-  const [step, setStep] = useState<'choice' | 'account' | 'farm'>('choice');
-  const [deviceMode, setDeviceMode] = useState<DeviceMode>('single');
-  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [farmName, setFarmName] = useState('');
   const [groups, setGroups] = useState<GroupDraft[]>([blankGroup()]);
   const [location, setLocation] = useState<FarmProfile['location']>(null);
   const [locationMessage, setLocationMessage] = useState('Location has not been added.');
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  async function chooseMode(mode: DeviceMode) {
-    setDeviceMode(mode);
-    setError('');
-    setNotice('');
-    if (mode === 'single') {
-      setStep('farm');
-      return;
-    }
-    setStep('account');
-    setBusy(true);
-    try {
-      if (hasApiSession()) {
-        await pullFromApiIfNewer();
-        setStep('farm');
-      }
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not check your sign-in status.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function submitAccount(event: React.FormEvent) {
-    event.preventDefault();
-    setError('');
-    setNotice('');
-    setBusy(true);
-    try {
-      await authenticate(email, password, authMode);
-      await pullFromApiIfNewer();
-      setStep('farm');
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not complete account sign-in. Check your connection and try again.');
-    } finally {
-      setBusy(false);
-    }
-  }
 
   function useDeviceLocation() {
     setError('');
@@ -95,10 +47,6 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       setError('Enter your farm name to continue.');
       return;
     }
-    if (deviceMode === 'multiple' && !hasApiSession()) {
-      setError('Multi-device mode needs an account and a working backend connection.');
-      return;
-    }
     const validGroups: AnimalGroup[] = [];
     for (const group of groups) {
       const name = group.name.trim();
@@ -110,7 +58,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       validGroups.push({ id: `grp-${uid()}`, name, type: group.type, count, herd: group.herd.trim() });
     }
     saveGroups(validGroups);
-    saveFarmProfile({ name: farmName.trim(), deviceMode, location });
+    saveFarmProfile({ name: farmName.trim(), deviceMode: 'multiple', location });
     onComplete();
   }
 
@@ -122,45 +70,8 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
           <span>GrazingTrack</span>
         </header>
         <section className="onboarding-content">
-          <div className="onboarding-kicker">FARM SETUP · {step === 'choice' ? '01' : step === 'account' ? '02' : deviceMode === 'multiple' ? '03' : '02'}</div>
-          {step === 'choice' && (
-            <>
-              <h1>Where will you use GrazingTrack?</h1>
-              <p className="onboarding-lead">Choose how your farm data should be available. You can change this later by setting up an account.</p>
-              <div className="device-options">
-                <button className="device-option" onClick={() => void chooseMode('single')}>
-                  <span className="device-icon" aria-hidden="true">▣</span>
-                  <span><strong>One device</strong><small>Keep farm data on this device. Works offline, no account needed.</small></span>
-                  <span className="device-arrow" aria-hidden="true">→</span>
-                </button>
-                <button className="device-option" onClick={() => void chooseMode('multiple')}>
-                  <span className="device-icon" aria-hidden="true">▤</span>
-                  <span><strong>More than one device</strong><small>Create an account or sign in to sync your farm across devices.</small></span>
-                  <span className="device-arrow" aria-hidden="true">→</span>
-                </button>
-              </div>
-            </>
-          )}
-          {step === 'account' && (
-            <>
-              <h1>{authMode === 'signin' ? 'Sign in to sync your farm' : 'Create your sync account'}</h1>
-              <p className="onboarding-lead">Multi-device use requires an account. Your fields, grazing records, groups, and farm profile will sync securely.</p>
-              <form className="onboarding-form" onSubmit={submitAccount}>
-                <label>Email<input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-                <label>Password<input type="password" autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} minLength={6} required value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-                {error && <p className="onboarding-message error" role="alert">{error}</p>}
-                {notice && <p className="onboarding-message" role="status">{notice}</p>}
-                <button className="onboarding-primary" type="submit" disabled={busy}>{busy ? 'Connecting…' : authMode === 'signin' ? 'Sign in and continue' : 'Create account'}</button>
-              </form>
-              <button className="onboarding-text-button" onClick={() => { setAuthMode(authMode === 'signin' ? 'signup' : 'signin'); setError(''); setNotice(''); }}>
-                {authMode === 'signin' ? 'Need an account? Create one' : 'Already have an account? Sign in'}
-              </button>
-              <button className="onboarding-back" onClick={() => { setStep('choice'); setError(''); setNotice(''); }}>← Choose one device instead</button>
-            </>
-          )}
-          {step === 'farm' && (
-            <>
-              <h1>Set up your farm</h1>
+          <div className="onboarding-kicker">FARM SETUP</div>
+          <h1>Set up your farm</h1>
               <p className="onboarding-lead">Add the basics now. You can edit animal groups and location later.</p>
               <form className="onboarding-form farm-form" onSubmit={finishSetup}>
                 <label>Farm name<input autoFocus maxLength={80} required value={farmName} onChange={(event) => setFarmName(event.target.value)} placeholder="e.g. Willow Creek Farm" /></label>
@@ -184,12 +95,9 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                 </div>
                 {error && <p className="onboarding-message error" role="alert">{error}</p>}
                 <button className="onboarding-primary" type="submit">Finish setup <span aria-hidden="true">→</span></button>
-                <button type="button" className="onboarding-back" onClick={() => setStep(deviceMode === 'multiple' ? 'account' : 'choice')}>← Back</button>
               </form>
-            </>
-          )}
         </section>
-        <footer className="onboarding-footer">{step === 'farm' ? 'Your farm is saved on this device and ready to use offline.' : 'Set up once, then get straight to your fields.'}</footer>
+        <footer className="onboarding-footer">Your farm data is saved locally and synced to your account when connected.</footer>
       </div>
       <div className="onboarding-land" aria-hidden="true"><div className="land-sun" /><div className="land-ridge ridge-back" /><div className="land-ridge ridge-front" /><div className="land-line line-one" /><div className="land-line line-two" /><div className="land-line line-three" /></div>
     </main>

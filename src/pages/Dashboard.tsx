@@ -2,6 +2,8 @@ import { loadFields, loadEvents } from '@/lib/localStore';
 import { getStatus } from '@/lib/status';
 import { useGtRefresh } from '@/lib/useGtRefresh';
 import { fmtDate, daysBetween, todayStr } from '@/lib/utils';
+import { loadFarmProfile } from '@/lib/localStore';
+import WeatherCard from '@/components/WeatherCard';
 
 function statusFillColor(field: ReturnType<typeof loadFields>[number], status: { cls: string }): string {
   if (status.cls === 'grazing') return '#22c55e';
@@ -92,6 +94,7 @@ export default function Dashboard({ onSelectField }: Props) {
             <p style={{ color: '#9ca3af', fontSize: 12 }}>No fields yet.</p>
           )}
         </div>
+        <WeatherCard location={loadFarmProfile()?.location ?? null} />
       </div>
 
       <div className="cr">
