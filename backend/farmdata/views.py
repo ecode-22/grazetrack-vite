@@ -39,6 +39,7 @@ def token_response(user, http_status=status.HTTP_200_OK):
 
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope = 'auth_register'
 
     def post(self, request):
         serializer = RegistrationSerializer(data=request.data)
@@ -60,6 +61,7 @@ class RegisterView(APIView):
 
 class PasswordResetRequestView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope = 'auth_reset'
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
@@ -83,6 +85,7 @@ class PasswordResetRequestView(APIView):
 
 class PasswordResetConfirmView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope = 'auth_reset'
 
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
@@ -97,6 +100,7 @@ class PasswordResetConfirmView(APIView):
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope = 'auth_login'
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data, context={'request': request})
@@ -151,8 +155,14 @@ class FarmDataView(APIView):
         return Response(FarmDataSerializer(data).data)
 
     def put(self, request):
-        data, _ = FarmData.objects.get_or_create(user=request.user)
-        serializer = FarmDataSerializer(data, data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+        expected_updated_at = request.data.get('expected_updated_at')
+        with transaction.atomic():
+            data, created = FarmData.objects.get_or_create(user=request.user)
+            data = FarmData.objects.select_for_update().get(pk=data.pk)
+            current_updated_at = None if created else FarmDataSerializer(data).data['updated_at']
+            if expected_updated_at != current_updated_at:
+                return Response(FarmDataSerializer(data).data, status=status.HTTP_409_CONFLICT)
+            serializer = FarmDataSerializer(data, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
         return Response(FarmDataSerializer(data).data)

@@ -11,7 +11,7 @@ export default function AboutModal({ onClose }: { onClose: () => void }) {
         </button>
       }
     >
-      <p>Free open source rotational grazing management. All data stays on your device.</p>
+      <p>Rotational grazing management with offline-first farm records and optional cloud sync.</p>
       <p style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
         This is a Vite/React rebuild of the original vanilla-JS app, offline-first with optional
         cloud sync.

@@ -90,8 +90,8 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                   ))}
                 </div>
                 <div className="setup-location">
-                  <div><strong>Farm location</strong><small>{locationMessage}</small>{location && <small>{location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}</small>}</div>
-                  <button type="button" className="onboarding-location-button" onClick={useDeviceLocation}>⌖ {location ? 'Refresh location' : 'Use device location'}</button>
+                  <div><strong>Farm location</strong><small>Used for farm weather. This saves the chosen point as your farm location.</small><small>{locationMessage}</small>{location && <small>{location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}</small>}</div>
+                  <button type="button" className="onboarding-location-button" onClick={useDeviceLocation}>⌖ {location ? 'Update farm GPS' : 'Set farm from current GPS'}</button>
                 </div>
                 {error && <p className="onboarding-message error" role="alert">{error}</p>}
                 <button className="onboarding-primary" type="submit">Finish setup <span aria-hidden="true">→</span></button>

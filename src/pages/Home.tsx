@@ -1,12 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
-import MapView, { type MapViewHandle } from '@/components/MapView';
+import type { MapViewHandle } from '@/components/MapView';
 import TabBar, { type Tab } from '@/components/TabBar';
 import StatusBar from '@/components/StatusBar';
 import Dashboard from './Dashboard';
 import RotationPlanner from './RotationPlanner';
-import Reports from './Reports';
-import Analytics from './Analytics';
 import NameFieldModal from '@/components/modals/NameFieldModal';
 import EditFieldModal from '@/components/modals/EditFieldModal';
 import GrazingModal from '@/components/modals/GrazingModal';
@@ -21,6 +19,9 @@ import { uid } from '@/lib/utils';
 import type { FieldGeometry, FieldType } from '@/lib/types';
 
 const DEFAULT_HINT = '💡 Click a field on the map to select it';
+const MapView = lazy(() => import('@/components/MapView'));
+const Reports = lazy(() => import('./Reports'));
+const Analytics = lazy(() => import('./Analytics'));
 
 interface NameDetails {
   name: string;
@@ -245,7 +246,7 @@ export default function Home() {
         onEditField={(id) => setModal({ type: 'edit', fieldId: id })}
         onHistoryField={(id) => setModal({ type: 'history', fieldId: id })}
         onGrazeField={(id) => openGrazingModal(id)}
-        onFieldChanged={() => {}}
+        onEditBoundaryField={(id) => mapRef.current?.editBoundary(id)}
         onOpenExport={() => setModal({ type: 'export' })}
         onOpenAbout={() => setModal({ type: 'about' })}
         onOpenGroups={() => setModal({ type: 'groups' })}
@@ -270,6 +271,7 @@ export default function Home() {
         />
 
         <div className={`tab-panel${activeTab === 'map' ? ' active' : ''}`}>
+          <Suspense fallback={<div className="map-loading" role="status">Loading map…</div>}>
           <MapView
             ref={mapRef}
             selectedFieldId={selectedFieldId}
@@ -287,6 +289,7 @@ export default function Home() {
             ndviOpacity={ndviOpacity}
             pressureEnabled={pressureEnabled}
           />
+          </Suspense>
           {splitBoundary && (
             <aside className="as-split-panel open" aria-label="Auto-split camps">
               <div className="as-sp-hdr">
@@ -399,12 +402,12 @@ export default function Home() {
         </div>
         <div className={`tab-panel${activeTab === 'reports' ? ' active' : ''}`}>
           {activeTab === 'reports' && (
-            <Reports />
+            <Suspense fallback={<div role="status">Loading reports…</div>}><Reports /></Suspense>
           )}
         </div>
         <div className={`tab-panel${activeTab === 'analytics' ? ' active' : ''}`}>
           {activeTab === 'analytics' && (
-            <Analytics onSelectField={showFieldOnMap} />
+            <Suspense fallback={<div role="status">Loading analytics…</div>}><Analytics onSelectField={showFieldOnMap} /></Suspense>
           )}
         </div>
       </main>
@@ -434,7 +437,7 @@ export default function Home() {
         />
       )}
 
-      {modal?.type === 'export' && <ExportModal onDataChanged={() => {}} onClose={() => setModal(null)} />}
+      {modal?.type === 'export' && <ExportModal onClose={() => setModal(null)} />}
       {modal?.type === 'about' && <AboutModal onClose={() => setModal(null)} />}
       {modal?.type === 'groups' && <GroupsManagerModal onClose={() => setModal(null)} />}
     </div>

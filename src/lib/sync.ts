@@ -8,15 +8,18 @@
 //  writes always succeed instantly; sync just tries to catch up.
 // ============================================================
 
-import { apiRequest, hasApiSession, type FarmData } from './api';
-import { getScopedStorageKey, loadFields, saveFields, loadEvents, saveEvents, loadGroups, saveGroups, loadFarmProfile, saveFarmProfile } from './localStore';
+import { apiRequest, hasApiSession, isAuthExpired, type FarmData } from './api';
+import { getScopedStorageKey, loadSyncRecords, saveSyncRecords, loadFarmProfile, saveFarmProfile } from './localStore';
+import { mergeSyncRecords } from './syncMerge';
+export { mergeSyncRecords } from './syncMerge';
 
 const LAST_CHANGE_KEY = 'gt_last_local_change';
+const SERVER_VERSION_KEY = 'gt_server_updated_at';
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let applyingRemoteData = false;
 const DEBOUNCE_MS = 2500;
 
-export type SyncStatus = 'offline' | 'synced' | 'syncing' | 'pending' | 'error' | 'no-account';
+export type SyncStatus = 'offline' | 'synced' | 'syncing' | 'pending' | 'error' | 'no-account' | 'auth-expired';
 
 let status: SyncStatus = 'offline';
 const listeners = new Set<(s: SyncStatus) => void>();
@@ -54,19 +57,24 @@ async function pushToApi(): Promise<boolean> {
   }
   setStatus('syncing');
   try {
-    await apiRequest<FarmData>('/farm-data/', {
+    const response = await apiRequest<FarmData>('/farm-data/', {
       method: 'PUT',
       body: JSON.stringify({
-        fields: loadFields(),
-        events: loadEvents(),
-        groups: loadGroups(),
+        ...loadSyncRecords(),
         farm: loadFarmProfile(),
+        expected_updated_at: localStorage.getItem(getScopedStorageKey(SERVER_VERSION_KEY)) || null,
       }),
     });
+    localStorage.setItem(getScopedStorageKey(SERVER_VERSION_KEY), response.updated_at ?? '');
     setStatus('synced');
     return true;
-  } catch {
-    setStatus('error');
+  } catch (error) {
+    if ((error as Error & { status?: number }).status === 409) {
+      await pullFromApiIfNewer();
+      return false;
+    }
+    if (isAuthExpired()) setStatus('auth-expired');
+    else setStatus('error');
     return false;
   }
 }
@@ -94,7 +102,7 @@ export async function pullFromApiIfNewer() {
   try {
     data = await apiRequest<FarmData | null>('/farm-data/');
   } catch {
-    setStatus('error');
+    setStatus(isAuthExpired() ? 'auth-expired' : 'error');
     return;
   }
   if (!data || !data.updated_at) {
@@ -104,22 +112,32 @@ export async function pullFromApiIfNewer() {
 
   const remoteUpdatedAt = new Date(data.updated_at ?? 0).getTime();
   const localUpdatedAt = getLastLocalChange();
-  if (remoteUpdatedAt > localUpdatedAt) {
+  const localRecords = loadSyncRecords();
+  const merged = {
+    fields: mergeSyncRecords(localRecords.fields, data.fields ?? []),
+    events: mergeSyncRecords(localRecords.events, data.events ?? []),
+    groups: mergeSyncRecords(localRecords.groups, data.groups ?? []),
+  };
+  const recordsChanged = JSON.stringify(merged) !== JSON.stringify(localRecords);
+  const farmChanged = remoteUpdatedAt > localUpdatedAt && JSON.stringify(data.farm) !== JSON.stringify(loadFarmProfile());
+  if (recordsChanged || farmChanged) {
     applyingRemoteData = true;
     try {
-      saveFields(data.fields ?? []);
-      saveEvents(data.events ?? []);
-      saveGroups(data.groups ?? []);
-      if (data.farm) saveFarmProfile(data.farm);
+      if (recordsChanged) saveSyncRecords(merged);
+      if (farmChanged) saveFarmProfile(data.farm);
     } finally {
       applyingRemoteData = false;
     }
-    localStorage.setItem(getScopedStorageKey(LAST_CHANGE_KEY), data.updated_at ?? new Date().toISOString());
-    setStatus('synced');
-    return;
+    if (remoteUpdatedAt > localUpdatedAt) {
+      localStorage.setItem(getScopedStorageKey(LAST_CHANGE_KEY), data.updated_at);
+    }
+    localStorage.setItem(getScopedStorageKey(SERVER_VERSION_KEY), data.updated_at);
   }
 
-  if (localUpdatedAt > remoteUpdatedAt) {
+  localStorage.setItem(getScopedStorageKey(SERVER_VERSION_KEY), data.updated_at);
+  if (JSON.stringify(merged) !== JSON.stringify(data.fields ? {
+    fields: data.fields ?? [], events: data.events ?? [], groups: data.groups ?? [],
+  } : merged) || localUpdatedAt > remoteUpdatedAt) {
     await pushToApi();
     return;
   }
@@ -142,4 +160,8 @@ export function initSync() {
   });
   window.addEventListener('offline', () => setStatus('offline'));
   window.addEventListener('gt:dirty', scheduleSyncToApi);
+  window.addEventListener('focus', () => { void pullFromApiIfNewer(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void pullFromApiIfNewer();
+  });
 }

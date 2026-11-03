@@ -2,6 +2,7 @@ from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core import mail
 from django.test import override_settings
 from rest_framework.test import APITestCase
@@ -9,6 +10,9 @@ from rest_framework.test import APITestCase
 
 class FarmDataApiTests(APITestCase):
     password = 'Healthy-Trail-93!'
+
+    def setUp(self):
+        cache.clear()
 
     def test_root_reports_api_status(self):
         response = self.client.get('/')
@@ -97,6 +101,16 @@ class FarmDataApiTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('access', response.data)
 
+    def test_refresh_rotates_and_blacklists_the_previous_token(self):
+        registration = self.create_account()
+        old_refresh = registration.data['refresh']
+        response = self.client.post('/api/auth/refresh/', {'refresh': old_refresh}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('refresh', response.data)
+        self.assertNotEqual(response.data['refresh'], old_refresh)
+        self.assertEqual(self.client.post('/api/auth/refresh/', {'refresh': old_refresh}, format='json').status_code, 401)
+        self.assertEqual(self.client.post('/api/auth/refresh/', {'refresh': response.data['refresh']}, format='json').status_code, 200)
+
     def test_account_profile_password_change_and_logout(self):
         registration = self.create_account()
         response = self.client.get('/api/auth/me/')
@@ -174,9 +188,20 @@ class FarmDataApiTests(APITestCase):
             'events': [],
             'groups': [],
             'farm': None,
+            'expected_updated_at': None,
         }, format='json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['fields'], [{'id': 'field-1'}])
+
+        stale_response = self.client.put('/api/farm-data/', {
+            'fields': [{'id': 'stale-field'}],
+            'events': [],
+            'groups': [],
+            'farm': None,
+            'expected_updated_at': None,
+        }, format='json')
+        self.assertEqual(stale_response.status_code, 409)
+        self.assertEqual(stale_response.data['fields'], [{'id': 'field-1'}])
 
         self.create_account()
         response = self.client.get('/api/farm-data/')

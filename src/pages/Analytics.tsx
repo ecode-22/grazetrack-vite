@@ -1,6 +1,6 @@
 import { loadEvents, loadFields, loadGroups } from '@/lib/localStore';
 import { getReadinessPct, getStatus } from '@/lib/status';
-import { daysBetween, daysSince, todayStr } from '@/lib/utils';
+import { addDays, daysBetween, daysSince, todayStr } from '@/lib/utils';
 import { useGtRefresh } from '@/lib/useGtRefresh';
 
 interface Props {
@@ -16,6 +16,7 @@ export default function Analytics({ onSelectField }: Props) {
   const events = loadEvents();
   const groups = loadGroups();
   const today = todayStr();
+  const trailingYearStart = addDays(today, -364);
   const statuses = fields.map(getStatus);
   const totalHa = fields.reduce((sum, field) => sum + field.areaHa, 0);
   const activeEvents = events.filter((event) => event.startDate <= today && event.endDate >= today);
@@ -31,13 +32,18 @@ export default function Analytics({ onSelectField }: Props) {
   });
   const maxMonthlyEvents = Math.max(1, ...months.map((month) => month.count));
   const performance = fields.map((field) => {
-    const history = events.filter((event) => event.fieldId === field.id).sort((a, b) => b.startDate.localeCompare(a.startDate));
+    const history = events.filter((event) => event.fieldId === field.id).sort((a, b) => b.endDate.localeCompare(a.endDate) || b.startDate.localeCompare(a.startDate));
     const last = history[0];
     const totalDays = history.reduce((sum, event) => sum + daysBetween(event.startDate, event.endDate), 0);
+    const trailingYearDays = history.reduce((sum, event) => {
+      const start = event.startDate < trailingYearStart ? trailingYearStart : event.startDate;
+      const end = event.endDate > today ? today : event.endDate;
+      return end < start ? sum : sum + daysBetween(start, end);
+    }, 0);
     const avgStocking = history.length && field.areaHa > 0
       ? history.reduce((sum, event) => sum + event.animalCount / field.areaHa, 0) / history.length
       : null;
-    return { field, history, last, totalDays, avgStocking };
+    return { field, history, last, totalDays, trailingYearDays, avgStocking };
   }).sort((a, b) => b.totalDays - a.totalDays);
 
   return (
@@ -97,13 +103,13 @@ export default function Analytics({ onSelectField }: Props) {
             </section>
           </div>
 
-          <section className="card analytics-card analytics-performance">
+            <section className="card analytics-card analytics-performance">
             <h2 className="card-title">Field performance</h2>
             <div className="table-scroll">
               <table className="htbl">
-                <thead><tr><th>Field</th><th>Status</th><th>Events</th><th>Grazing days</th><th>Last grazed</th><th>Avg AU/ha</th><th>Utilization</th></tr></thead>
-                <tbody>{performance.map(({ field, history, last, totalDays, avgStocking }) => {
-                  const utilization = Math.min(100, Math.round(totalDays / 365 * 100));
+                <thead><tr><th>Field</th><th>Status</th><th>Events</th><th>Grazing days</th><th>Last grazed</th><th>Avg AU/ha</th><th>12-mo utilization</th></tr></thead>
+                <tbody>{performance.map(({ field, history, last, totalDays, trailingYearDays, avgStocking }) => {
+                  const utilization = Math.min(100, Math.round(Math.min(365, trailingYearDays) / 365 * 100));
                   return (
                     <tr key={field.id} className="analytics-table-row">
                       <td><button type="button" className="analytics-field-link" onClick={() => onSelectField(field.id)}>{field.name}</button></td>

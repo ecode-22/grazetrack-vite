@@ -2,7 +2,7 @@ import { loadFields, loadEvents } from '@/lib/localStore';
 import { getStatus } from '@/lib/status';
 import { useGtRefresh } from '@/lib/useGtRefresh';
 import { fmtDate, daysBetween, todayStr } from '@/lib/utils';
-import { loadFarmProfile } from '@/lib/localStore';
+import { loadFarmProfile, saveFarmProfile } from '@/lib/localStore';
 import WeatherCard from '@/components/WeatherCard';
 
 function statusFillColor(field: ReturnType<typeof loadFields>[number], status: { cls: string }): string {
@@ -27,7 +27,7 @@ export default function Dashboard({ onSelectField }: Props) {
   const totalHa = fields.reduce((s, f) => s + f.areaHa, 0);
   const statuses = fields.map(getStatus);
   const nG = statuses.filter((s) => s.cls === 'grazing').length;
-  const nR = statuses.filter((s) => s.cls === 'ready').length;
+  const nR = statuses.filter((s) => s.cls === 'ready' || s.cls === 'none').length;
   const nRe = statuses.filter((s) => s.cls === 'resting').length;
   const nD = statuses.filter((s) => s.cls === 'danger').length;
   const evM = events.filter((e) => e.startDate.startsWith(thisMonth)).length;
@@ -45,7 +45,7 @@ export default function Dashboard({ onSelectField }: Props) {
 
   const stocking = fields
     .map((f) => {
-      const fe = events.filter((e) => e.fieldId === f.id).sort((a, b) => b.startDate.localeCompare(a.startDate));
+      const fe = events.filter((e) => e.fieldId === f.id).sort((a, b) => b.endDate.localeCompare(a.endDate) || b.startDate.localeCompare(a.startDate));
       if (!fe.length) return null;
       const last = fe[0];
       const auHa = (last.animalCount / f.areaHa).toFixed(1);
@@ -94,7 +94,15 @@ export default function Dashboard({ onSelectField }: Props) {
             <p style={{ color: '#9ca3af', fontSize: 12 }}>No fields yet.</p>
           )}
         </div>
-        <WeatherCard location={loadFarmProfile()?.location ?? null} />
+        <WeatherCard
+          location={loadFarmProfile()?.location ?? null}
+          onSaveFarmLocation={(location) => {
+            const profile = loadFarmProfile();
+            saveFarmProfile(profile
+              ? { ...profile, location }
+              : { name: 'My Farm', deviceMode: 'multiple', location });
+          }}
+        />
       </div>
 
       <div className="cr">

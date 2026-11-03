@@ -24,7 +24,7 @@ interface Props {
   onEditField: (id: string) => void;
   onHistoryField: (id: string) => void;
   onGrazeField: (id: string) => void;
-  onFieldChanged: () => void;
+  onEditBoundaryField: (id: string) => void;
   onOpenExport: () => void;
   onOpenAbout: () => void;
   onOpenGroups: () => void;
@@ -70,7 +70,7 @@ export default function Sidebar(props: Props) {
           <span className="sb-leaf">🌾</span>
           <div className="sb-brand-text">
             <div className="sb-name">GrazingTrack</div>
-            <div className="sb-sub">Free &amp; Open Source</div>
+            <div className="sb-sub">Offline-first grazing</div>
           </div>
         </div>
         <div className="sb-header-actions">
@@ -165,7 +165,7 @@ export default function Sidebar(props: Props) {
             onEdit={props.onEditField}
             onHistory={props.onHistoryField}
             onGraze={props.onGrazeField}
-            onChanged={props.onFieldChanged}
+            onEditBoundary={props.onEditBoundaryField}
           />
         </div>
       )}

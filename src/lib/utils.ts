@@ -9,21 +9,21 @@ export function uid(): string {
 }
 
 export function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg' }).format(new Date());
 }
 
 export function addDays(d: string, n: number): string {
-  const dt = new Date(d);
-  dt.setDate(dt.getDate() + n);
+  const dt = new Date(`${d}T00:00:00Z`);
+  dt.setUTCDate(dt.getUTCDate() + n);
   return dt.toISOString().slice(0, 10);
 }
 
 export function daysBetween(a: string, b: string): number {
-  return Math.max(0, Math.round((+new Date(b) - +new Date(a)) / 86400000));
+  return Math.max(0, Math.round((+new Date(b) - +new Date(a)) / 86400000) + 1);
 }
 
 export function daysSince(d: string): number {
-  return daysBetween(d, todayStr());
+  return Math.round((+new Date(`${todayStr()}T00:00:00Z`) - +new Date(`${d}T00:00:00Z`)) / 86400000);
 }
 
 export function fmtDate(s: string): string {

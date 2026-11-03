@@ -24,22 +24,6 @@ export default defineConfig({
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
         ],
       },
-      workbox: {
-        // App shell precached automatically by the plugin; here we add a
-        // runtime strategy so map tiles keep working with no connectivity
-        // once a farmer has panned over an area at least once.
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/[abc]\.tile\.openstreetmap\.org\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'osm-tiles',
-              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
-      },
     }),
   ],
   resolve: {

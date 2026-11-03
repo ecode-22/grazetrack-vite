@@ -16,13 +16,14 @@ export function getEffectiveRestTarget(field: Field): number {
 export function getStatus(field: Field): FieldStatus {
   const events = loadEvents()
     .filter((e) => e.fieldId === field.id)
-    .sort((a, b) => b.startDate.localeCompare(a.startDate));
+    .sort((a, b) => b.endDate.localeCompare(a.endDate) || b.startDate.localeCompare(a.startDate));
 
   if (!events.length) return { label: 'Never grazed', cls: 'none' };
 
   const latest = events[0];
   const today = todayStr();
 
+  if (latest.startDate > today) return { label: 'Planned', cls: 'resting' };
   if (latest.startDate <= today && latest.endDate >= today) {
     return { label: 'Grazing now', cls: 'grazing' };
   }
@@ -39,12 +40,13 @@ export function getStatus(field: Field): FieldStatus {
 export function getReadinessPct(field: Field): number {
   const events = loadEvents()
     .filter((e) => e.fieldId === field.id)
-    .sort((a, b) => b.startDate.localeCompare(a.startDate));
+    .sort((a, b) => b.endDate.localeCompare(a.endDate) || b.startDate.localeCompare(a.startDate));
 
   if (!events.length) return 100;
 
   const latest = events[0];
   const today = todayStr();
+  if (latest.startDate > today) return 0;
   if (latest.startDate <= today && latest.endDate >= today) return 0;
 
   const target = getEffectiveRestTarget(field);

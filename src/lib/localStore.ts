@@ -53,7 +53,7 @@ export function setActiveAccount(userId: number | string | null) {
   window.dispatchEvent(new CustomEvent('gt:data-changed'));
 }
 
-function load<T>(key: string): T[] {
+function loadRaw<T>(key: string): T[] {
   try {
     const raw = localStorage.getItem(key);
     return raw ? (JSON.parse(raw) as T[]) : [];
@@ -63,6 +63,10 @@ function load<T>(key: string): T[] {
   }
 }
 
+function load<T extends { deletedAt?: string }>(key: string): T[] {
+  return loadRaw<T>(key).filter((record) => !record.deletedAt);
+}
+
 function emitChange() {
   window.dispatchEvent(new CustomEvent('gt:data-changed'));
   window.dispatchEvent(new CustomEvent('gt:dirty')); // tells sync.ts a push is owed
@@ -70,7 +74,26 @@ function emitChange() {
 
 function save<T>(key: string, value: T[]) {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    const previous = loadRaw<T & { id: string; updatedAt?: string; deletedAt?: string }>(key);
+    const previousById = new Map(previous.map((record) => [record.id, record]));
+    const now = new Date().toISOString();
+    const incoming = value as (T & { id: string; updatedAt?: string; deletedAt?: string })[];
+    const incomingIds = new Set(incoming.map((record) => record.id));
+    const records = incoming.map((record) => {
+      const oldRecord = previousById.get(record.id);
+      const { updatedAt: _updatedAt, deletedAt: _deletedAt, ...content } = record;
+      const { updatedAt: _oldUpdatedAt, deletedAt: _oldDeletedAt, ...oldContent } = oldRecord ?? {};
+      const changed = oldRecord && JSON.stringify(content) !== JSON.stringify(oldContent);
+      return { ...record, updatedAt: changed || !record.updatedAt ? now : record.updatedAt };
+    });
+    previous.forEach((record) => {
+      if (!incomingIds.has(record.id)) {
+        records.push(record.deletedAt
+          ? record as (typeof records)[number]
+          : { ...record, updatedAt: now, deletedAt: now } as (typeof records)[number]);
+      }
+    });
+    localStorage.setItem(key, JSON.stringify(records));
     emitChange();
   } catch (e: any) {
     if (e?.name === 'QuotaExceededError') {
@@ -87,6 +110,21 @@ export const saveEvents = (v: GrazingEvent[]) => save(getScopedStorageKey(KEYS.e
 
 export const loadGroups = (): AnimalGroup[] => load<AnimalGroup>(getScopedStorageKey(KEYS.groups));
 export const saveGroups = (v: AnimalGroup[]) => save(getScopedStorageKey(KEYS.groups), v);
+
+export function loadSyncRecords() {
+  return {
+    fields: loadRaw<Field & { deletedAt?: string }>(getScopedStorageKey(KEYS.fields)),
+    events: loadRaw<GrazingEvent & { deletedAt?: string }>(getScopedStorageKey(KEYS.events)),
+    groups: loadRaw<AnimalGroup & { deletedAt?: string }>(getScopedStorageKey(KEYS.groups)),
+  };
+}
+
+export function saveSyncRecords(data: { fields: Field[]; events: GrazingEvent[]; groups: AnimalGroup[] }) {
+  localStorage.setItem(getScopedStorageKey(KEYS.fields), JSON.stringify(data.fields));
+  localStorage.setItem(getScopedStorageKey(KEYS.events), JSON.stringify(data.events));
+  localStorage.setItem(getScopedStorageKey(KEYS.groups), JSON.stringify(data.groups));
+  window.dispatchEvent(new CustomEvent('gt:data-changed'));
+}
 
 export function loadFarmProfile(): FarmProfile | null {
   try {
@@ -139,6 +177,9 @@ export function onDataChanged(fn: () => void) {
 }
 
 export function clearAllData() {
-  Object.values(KEYS).forEach((key) => localStorage.removeItem(getScopedStorageKey(key)));
+  save(getScopedStorageKey(KEYS.fields), []);
+  save(getScopedStorageKey(KEYS.events), []);
+  save(getScopedStorageKey(KEYS.groups), []);
+  localStorage.removeItem(getScopedStorageKey(KEYS.farm));
   emitChange();
 }

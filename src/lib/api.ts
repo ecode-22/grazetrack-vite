@@ -19,6 +19,7 @@ export type FarmData = {
   updated_at: string | null;
 };
 
+
 type TokenResponse = {
   access: string;
   refresh: string;
@@ -31,7 +32,14 @@ export function hasApiSession() {
   return Boolean(localStorage.getItem(ACCESS_TOKEN_KEY) && localStorage.getItem(REFRESH_TOKEN_KEY));
 }
 
+let authExpired = false;
+
+export function isAuthExpired() {
+  return authExpired;
+}
+
 function saveTokens(tokens: TokenResponse) {
+  authExpired = false;
   localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access);
   localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh);
 }
@@ -48,7 +56,9 @@ async function responseError(response: Response) {
   const firstMessage = body && Object.values(body).flatMap((value) =>
     Array.isArray(value) ? value : [value],
   ).find((value) => typeof value === 'string');
-  return new Error(typeof firstMessage === 'string' ? firstMessage : `Request failed (${response.status}).`);
+  const error = new Error(typeof firstMessage === 'string' ? firstMessage : `Request failed (${response.status}).`);
+  Object.assign(error, { status: response.status });
+  return error;
 }
 
 export async function authenticate(email: string, password: string, mode: AuthMode, confirmPassword?: string, fullName?: string) {
@@ -120,11 +130,12 @@ async function refreshAccessToken() {
       body: JSON.stringify({ refresh }),
     });
     if (!response.ok) {
-      clearApiSession();
+      authExpired = true;
       return null;
     }
-    const tokens = await response.json() as { access: string };
+    const tokens = await response.json() as { access: string; refresh?: string };
     localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access);
+    if (tokens.refresh) localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh);
     return tokens.access;
   } catch {
     return null;
@@ -137,14 +148,21 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   const access = localStorage.getItem(ACCESS_TOKEN_KEY);
   if (access) headers.set('Authorization', `Bearer ${access}`);
 
-  let response = await fetch(`${API_URL}${path}`, { ...init, headers });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  const signal = init.signal ? AbortSignal.any([init.signal, controller.signal]) : controller.signal;
+  try {
+  let response = await fetch(`${API_URL}${path}`, { ...init, headers, signal });
   if (response.status === 401 && access) {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
       headers.set('Authorization', `Bearer ${refreshed}`);
-      response = await fetch(`${API_URL}${path}`, { ...init, headers });
+      response = await fetch(`${API_URL}${path}`, { ...init, headers, signal });
     }
   }
   if (!response.ok) throw await responseError(response);
   return await response.json() as T;
+  } finally {
+    clearTimeout(timeout);
+  }
 }

@@ -11,29 +11,22 @@ import { pullFromApiIfNewer } from '@/lib/sync';
 
 function Startup() {
   const [authenticated, setAuthenticated] = useState(() => hasApiSession());
-  const [ready, setReady] = useState(() => !hasApiSession());
   const [needsSetup, setNeedsSetup] = useState(() => !loadFarmProfile());
 
   useEffect(() => {
     function updateAuthentication() {
       const signedIn = hasApiSession();
       setAuthenticated(signedIn);
-      setReady(!signedIn);
+      if (!signedIn) setNeedsSetup(!loadFarmProfile());
     }
     window.addEventListener('gt:auth-changed', updateAuthentication);
-    if (authenticated) void pullFromApiIfNewer().finally(() => {
-      setAuthenticated(hasApiSession());
-      setNeedsSetup(!loadFarmProfile());
-      setReady(true);
-    });
+    if (authenticated) void pullFromApiIfNewer().finally(() => setNeedsSetup(!loadFarmProfile()));
     return () => window.removeEventListener('gt:auth-changed', updateAuthentication);
   }, [authenticated]);
 
   if (!authenticated) return <Login onAuthenticated={() => {
     setAuthenticated(true);
-    setReady(false);
   }} />;
-  if (!ready) return <main className="auth-loading" role="status">Loading your synced farm…</main>;
   return needsSetup ? <Onboarding onComplete={() => setNeedsSetup(false)} /> : <Home />;
 }
 

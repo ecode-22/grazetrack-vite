@@ -23,6 +23,8 @@ export interface Field {
   areaHa: number;
   color: string;
   createdAt: string; // ISO
+  updatedAt?: string;
+  deletedAt?: string;
 }
 
 export interface GrazingEvent {
@@ -35,6 +37,8 @@ export interface GrazingEvent {
   herd: string;
   notes: string;
   loggedAt: string; // ISO
+  updatedAt?: string;
+  deletedAt?: string;
 }
 
 export interface AnimalGroup {
@@ -43,6 +47,8 @@ export interface AnimalGroup {
   type: AnimalType;
   count: number;
   herd: string;
+  updatedAt?: string;
+  deletedAt?: string;
 }
 
 export interface FarmProfile {

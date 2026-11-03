@@ -7,10 +7,10 @@ interface Props {
   onEdit: (id: string) => void;
   onHistory: (id: string) => void;
   onGraze: (id: string) => void;
-  onChanged: () => void;
+  onEditBoundary: (id: string) => void;
 }
 
-export default function FieldDetail({ fieldId, onEdit, onHistory, onGraze, onChanged }: Props) {
+export default function FieldDetail({ fieldId, onEdit, onHistory, onGraze, onEditBoundary }: Props) {
   const field = loadFields().find((f) => f.id === fieldId);
   if (!field) return null;
 
@@ -50,7 +50,6 @@ export default function FieldDetail({ fieldId, onEdit, onHistory, onGraze, onCha
     const ev = all.find((e) => e.id === activeEvent.id);
     if (ev) ev.endDate = today;
     saveEvents(all);
-    onChanged();
   }
 
   return (
@@ -107,6 +106,9 @@ export default function FieldDetail({ fieldId, onEdit, onHistory, onGraze, onCha
       <div className="detail-actions">
         <button className="detail-btn edit" onClick={() => onEdit(fieldId)}>
           ✎ Edit
+        </button>
+        <button className="detail-btn" onClick={() => onEditBoundary(fieldId)}>
+          ⌖ Edit boundary
         </button>
         <button className="detail-btn" onClick={() => onHistory(fieldId)}>
           📋 History

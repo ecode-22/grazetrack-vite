@@ -54,22 +54,33 @@ function formatDay(date: string) {
   return new Intl.DateTimeFormat(undefined, { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
 }
 
-export default function WeatherCard({ location }: { location: WeatherLocation | null }) {
-  const [deviceLocation, setDeviceLocation] = useState<WeatherLocation | null>(null);
+export default function WeatherCard({ location, onSaveFarmLocation }: {
+  location: WeatherLocation | null;
+  onSaveFarmLocation: (location: WeatherLocation) => void;
+}) {
   const [data, setData] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [locationError, setLocationError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
-  const activeLocation = location ?? deviceLocation;
+  const [editingLocation, setEditingLocation] = useState(!location);
+  const [latitude, setLatitude] = useState(location ? String(location.latitude) : '');
+  const [longitude, setLongitude] = useState(location ? String(location.longitude) : '');
+  const [locationError, setLocationError] = useState('');
+  const locationLatitude = location?.latitude;
+  const locationLongitude = location?.longitude;
 
   useEffect(() => {
-    if (!activeLocation) return;
+    if (locationLatitude === undefined || locationLongitude === undefined) return;
 
     const controller = new AbortController();
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 10000);
     const params = new URLSearchParams({
-      latitude: String(activeLocation.latitude),
-      longitude: String(activeLocation.longitude),
+      latitude: String(locationLatitude),
+      longitude: String(locationLongitude),
       current: 'temperature_2m,is_day,weather_code,wind_speed_10m,wind_direction_10m',
       daily: 'weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_direction_10m_dominant',
       timezone: 'auto',
@@ -85,32 +96,34 @@ export default function WeatherCard({ location }: { location: WeatherLocation | 
       })
       .then((weather) => setData(weather))
       .catch((cause: unknown) => {
-        if (cause instanceof Error && cause.name === 'AbortError') return;
-        setError('Could not load the local forecast. Check your connection and try again.');
+        if (cause instanceof Error && cause.name === 'AbortError' && !timedOut) return;
+        setError(timedOut ? 'The forecast request timed out. Check your connection and try again.' : 'Could not load the farm forecast. Check your connection and try again.');
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        clearTimeout(timeout);
+        setLoading(false);
       });
 
-    return () => controller.abort();
-  }, [activeLocation?.latitude, activeLocation?.longitude, refreshKey]);
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [locationLatitude, locationLongitude, refreshKey]);
 
-  function useDeviceLocation() {
+  function saveLocation() {
     setLocationError('');
-    if (!navigator.geolocation) {
-      setLocationError('Device location is not available in this browser.');
+    const lat = Number(latitude);
+    const lon = Number(longitude);
+    if (!latitude.trim() || !longitude.trim() || !Number.isFinite(lat) || lat < -90 || lat > 90) {
+      setLocationError('Enter a latitude between -90 and 90.');
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (position) => setDeviceLocation({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracyM: position.coords.accuracy,
-        capturedAt: new Date(position.timestamp).toISOString(),
-      }),
-      () => setLocationError('Could not get your location. Check browser permission and try again.'),
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
-    );
+    if (!Number.isFinite(lon) || lon < -180 || lon > 180) {
+      setLocationError('Enter a longitude between -180 and 180.');
+      return;
+    }
+    onSaveFarmLocation({ latitude: lat, longitude: lon, accuracyM: 0, capturedAt: new Date().toISOString() });
+    setEditingLocation(false);
   }
 
   return (
@@ -118,21 +131,30 @@ export default function WeatherCard({ location }: { location: WeatherLocation | 
       <div className="weather-heading">
         <div>
           <div className="card-title">Farm weather</div>
-          <div className="weather-location">{location ? 'Saved farm location' : deviceLocation ? 'This device location' : 'Local conditions'}</div>
+          <div className="weather-location">{location ? `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}` : 'Farm coordinates not set'}</div>
         </div>
-        {activeLocation && (
+        <div className="weather-heading-actions">
+        {location && !editingLocation && (
           <button type="button" className="weather-refresh" onClick={() => setRefreshKey((key) => key + 1)} disabled={loading} aria-label="Refresh weather" title="Refresh weather">
             ↻
           </button>
         )}
+        {location && !editingLocation && <button type="button" className="weather-location-edit" onClick={() => {
+          setLatitude(String(location.latitude));
+          setLongitude(String(location.longitude));
+          setEditingLocation(true);
+        }}>Edit farm location</button>}
+        </div>
       </div>
 
-      {!activeLocation ? (
-        <div className="weather-empty">
-          <p>Set a farm location to see local conditions.</p>
-          <button type="button" className="weather-retry" onClick={useDeviceLocation}>⌖ Use this device's location</button>
+      {editingLocation || !location ? (
+        <form className="weather-location-form" onSubmit={(event) => { event.preventDefault(); saveLocation(); }}>
+          <p>Weather is based on your farm coordinates, not this device’s location.</p>
+          <label>Latitude<input type="number" min="-90" max="90" step="any" value={latitude} onChange={(event) => setLatitude(event.target.value)} placeholder="e.g. -33.92" /></label>
+          <label>Longitude<input type="number" min="-180" max="180" step="any" value={longitude} onChange={(event) => setLongitude(event.target.value)} placeholder="e.g. 18.42" /></label>
           {locationError && <p className="weather-location-error" role="alert">{locationError}</p>}
-        </div>
+          <div><button className="weather-retry" type="submit">Save farm location</button>{location && <button className="weather-cancel-edit" type="button" onClick={() => setEditingLocation(false)}>Cancel</button>}</div>
+        </form>
       ) : error ? (
         <div className="weather-error" role="alert">
           <strong>Forecast unavailable</strong>
@@ -141,7 +163,7 @@ export default function WeatherCard({ location }: { location: WeatherLocation | 
         </div>
       ) : loading && !data ? (
         <p className="weather-loading" role="status">Loading local forecast…</p>
-      ) : data ? (
+      ) : location && data ? (
         <>
           <div className="weather-current">
             <span className="weather-current-symbol" aria-hidden="true">{weatherSymbol(data.current.weather_code, data.current.is_day === 1)}</span>

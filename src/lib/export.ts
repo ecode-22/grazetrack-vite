@@ -58,23 +58,28 @@ export function exportCSV() {
   const fields = loadFields();
   const events = [...loadEvents()].sort((a, b) => a.startDate.localeCompare(b.startDate));
   const rows: (string | number)[][] = [
-    ['Field', 'Start date', 'End date', 'Days', 'Animal type', 'Count', 'AU/ha', 'Notes'],
+    ['Field', 'Herd', 'Start date', 'End date', 'Days', 'Animal type', 'Count', 'AU/ha', 'Notes'],
   ];
   events.forEach((e) => {
     const f = fields.find((x) => x.id === e.fieldId);
     const auHa = f ? (e.animalCount / f.areaHa).toFixed(2) : '';
     rows.push([
       f ? f.name : 'Unknown',
+      e.herd || '',
       e.startDate,
       e.endDate,
       daysBetween(e.startDate, e.endDate),
       e.animalType,
       e.animalCount,
       auHa,
-      `"${(e.notes || '').replace(/"/g, '""')}"`,
+      e.notes || '',
     ]);
   });
-  download('grazingtrack-events.csv', rows.map((r) => r.join(',')).join('\n'), 'text/csv');
+  const csv = rows.map((row) => row.map((value) => {
+    if (typeof value !== 'string') return value;
+    return `"${value.replace(/"/g, '""')}"`;
+  }).join(',')).join('\n');
+  download('grazingtrack-events.csv', csv, 'text/csv');
 }
 
 export function importJSON(file: File): Promise<{ fieldCount: number; eventCount: number } | null> {

@@ -66,7 +66,7 @@ async function downloadReport() {
     history.forEach((event) => {
       const start = new Date(`${event.startDate}T00:00:00Z`);
       const end = new Date(`${event.endDate}T00:00:00Z`);
-      for (const day = new Date(start); day < end; day.setUTCDate(day.getUTCDate() + 1)) {
+      for (const day = new Date(start); day <= end; day.setUTCDate(day.getUTCDate() + 1)) {
         const key = day.toISOString().slice(0, 7);
         monthly.set(key, (monthly.get(key) ?? 0) + 1);
       }

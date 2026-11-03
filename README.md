@@ -20,8 +20,8 @@ explicitly.
   user; the first account sign-in carries existing device data into that
   account without exposing it to another user.
 - **Status/readiness logic**: `getStatus()` / `getReadinessPct()` in
-  `src/lib/status.ts` are line-for-line ports, including the exact CSS
-  status classes (`grazing`/`ready`/`resting`/`danger`/`none`).
+  `src/lib/status.ts` share status classes (`grazing`/`ready`/`resting`/
+  `danger`/`none`) and account for planned future events.
 - **Area math**: `calcAreaHa()` in `src/lib/geo.ts` is the same spherical
   approximation formula as the original, not a Turf.js estimate.
 - **Draw flow**: sidebar-driven Leaflet-Draw polygon tool (`Select`/`Draw`
@@ -68,15 +68,18 @@ rather than silently doing nothing.
 
 - `src/lib/localStore.ts` is the only source of truth the UI reads from —
   every write is instant, synchronous `localStorage`, no network involved.
-- `src/lib/sync.ts` debounces (2.5s) a push of the fields, events, animal
-  groups, and farm profile to the Django API while online, and pulls-and-merges
-  (last-write-wins by a local change timestamp) on reconnect.
+- `src/lib/sync.ts` debounces (2.5s) pushes and merges fields, events, and
+  groups per record using `updatedAt`/`deletedAt`. Writes include the last-seen
+  server version; stale writes receive HTTP 409 and merge before retrying.
+- Farm data renders from local storage immediately. Network requests time out,
+  and sync pulls run on reconnect and when a tab becomes visible.
 - Django handles registration, login, and per-account API access. It stores
   password hashes and farm data in its own tables on Supabase PostgreSQL.
 - Account settings show the signed-in email and farm, allow password changes,
   revoke other sessions after a password update, and provide sign-out.
-- `vite-plugin-pwa` precaches the app shell and runtime-caches OpenStreetMap
-  tiles, so the map and all data work with zero connectivity.
+- `vite-plugin-pwa` precaches the app shell and includes 192 px / 512 px
+  install icons. Map tiles are not bulk-downloaded or cached because the
+  configured public tile services do not grant offline download rights.
 - An account and reachable backend are required to enter the app. Once signed in,
   farm data remains available offline and syncs when connectivity returns.
 
@@ -127,10 +130,7 @@ backend/manage.py test farmdata.tests`.
 
 ## Notes
 
-- Map tiles point at the public OpenStreetMap tile server — swap for
-  whatever provider the original used if it wasn't OSM.
-- PWA manifest icons (`/icons/icon-192.png`, `-512.png`) aren't included —
-  drop your app icons into `public/icons/`.
-- `npm run build` currently warns about a >500kB JS chunk (Leaflet +
-  Leaflet-Draw and mapping code together). Harmless, but if it matters,
-  the fix is code-splitting the map into a lazy `React.lazy()` import.
+- Map tiles use public OSM and Esri services. Configure a provider with an
+  explicit offline license before adding farm-area tile downloads.
+- Map, analytics, and report views are lazy-loaded to keep the initial bundle
+  smaller.

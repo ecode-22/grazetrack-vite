@@ -15,6 +15,7 @@ export interface MapViewHandle {
   undoLastVertex(): void;
   flyToField(id: string): void;
   invalidateSize(): void;
+  editBoundary(id: string): void;
 }
 
 interface Props {
@@ -46,6 +47,12 @@ function statusFillColor(field: Field): string {
   return field.color || '#2d6a4f';
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[character]!);
+}
+
 const MapView = forwardRef<MapViewHandle, Props>(function MapView(
   { selectedFieldId, onSelectField, onDeselect, tool, onFieldDrawn, onBoundaryDrawn, previewGeometries, previewNames, ndviEnabled, ndviDate, ndviOpacity, pressureEnabled, onVertexCount, onStatus },
   ref,
@@ -57,11 +64,16 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
   const pendingLayerRef = useRef<L.Layer | null>(null);
   const previewLayerGroupRef = useRef<L.FeatureGroup | null>(null);
   const ndviLayerRef = useRef<L.TileLayer | null>(null);
+  const boundaryEditGroupRef = useRef<L.FeatureGroup | null>(null);
+  const boundaryEditControlRef = useRef<L.Control.Draw | null>(null);
+  const boundaryEditFieldIdRef = useRef<string | null>(null);
   const selectedFieldIdRef = useRef<string | null>(null);
   const toolRef = useRef(tool);
   const onBoundaryDrawnRef = useRef(onBoundaryDrawn);
+  const onStatusRef = useRef(onStatus);
   toolRef.current = tool;
   onBoundaryDrawnRef.current = onBoundaryDrawn;
+  onStatusRef.current = onStatus;
 
   useEffect(() => {
     selectedFieldIdRef.current = selectedFieldId;
@@ -133,6 +145,40 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
       }
     });
 
+    map.on((L as any).Draw.Event.EDITED, () => {
+      const fieldId = boundaryEditFieldIdRef.current;
+      const editGroup = boundaryEditGroupRef.current;
+      if (!fieldId || !editGroup) return;
+      const geometries: FieldGeometry[] = [];
+      editGroup.eachLayer((layer: any) => {
+        const geometry = layer.toGeoJSON().geometry as FieldGeometry;
+        if (geometry.type === 'Polygon') geometries.push(geometry);
+        else geometries.push(...geometry.coordinates.map((coordinates: any) => ({ type: 'Polygon' as const, coordinates })));
+      });
+      const original = loadFields().find((field) => field.id === fieldId);
+      if (!original || !geometries.length) return;
+      const geometry: FieldGeometry = original.geometry.type === 'MultiPolygon' || geometries.length > 1
+        ? { type: 'MultiPolygon', coordinates: geometries.map((part) => part.coordinates) }
+        : geometries[0];
+      const areaHa = calcAreaHa(geometry);
+      if (!Number.isFinite(areaHa) || areaHa < 0.01) {
+        onStatus('Boundary was not saved: the edited paddock must be at least 0.01 ha.');
+        return;
+      }
+      saveFields(loadFields().map((field) => field.id === fieldId ? { ...field, geometry, areaHa } : field));
+      onStatus(`Updated boundary · ${areaHa.toFixed(2)} ha`);
+    });
+
+    map.on((L as any).Draw.Event.EDITSTOP, () => {
+      const editGroup = boundaryEditGroupRef.current;
+      const editControl = boundaryEditControlRef.current;
+      if (editGroup) map.removeLayer(editGroup);
+      if (editControl) map.removeControl(editControl);
+      boundaryEditGroupRef.current = null;
+      boundaryEditControlRef.current = null;
+      boundaryEditFieldIdRef.current = null;
+    });
+
     map.on('draw:drawvertex', (e: any) => {
       const pts: L.LatLng[] = [];
       e.layers.eachLayer((l: any) => pts.push(l.getLatLng()));
@@ -189,12 +235,13 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
           const fill = pressureEnabled
             ? ratio > 0.75 ? '#b91c1c' : ratio > 0.5 ? '#ea580c' : ratio > 0.25 ? '#eab308' : '#65a30d'
             : statusFillColor(field);
-          return { color: fill, fillColor: fill, fillOpacity: 0.38, weight: 2.5 };
+          const selected = field.id === selectedFieldIdRef.current;
+          return { color: selected ? '#173d31' : fill, fillColor: fill, fillOpacity: selected ? 0.58 : 0.38, weight: selected ? 4 : 2.5 };
         },
       });
       layer.eachLayer((l: any) => {
         l.options.fieldId = field.id;
-        l.bindTooltip(`<strong>${field.name}</strong><br>${field.areaHa.toFixed(1)} ha`, {
+        l.bindTooltip(`<strong>${escapeHtml(field.name)}</strong><br>${field.areaHa.toFixed(1)} ha`, {
           permanent: true,
           direction: 'center',
           className: 'field-label',
@@ -212,7 +259,7 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
     rebuildFieldLayers();
     return onDataChanged(rebuildFieldLayers);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pressureEnabled]);
+  }, [pressureEnabled, selectedFieldId]);
 
   useEffect(() => {
     const group = previewLayerGroupRef.current;
@@ -225,7 +272,7 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
       }).addTo(group);
       preview.eachLayer((layer) => {
         layer.bindTooltip(
-          previewNames[index]?.trim() || `P${String(index + 1).padStart(2, '0')}`,
+          escapeHtml(previewNames[index]?.trim() || `P${String(index + 1).padStart(2, '0')}`),
           { permanent: true, direction: 'center', className: 'camp-lbl', opacity: 1 },
         );
       });
@@ -248,7 +295,7 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
     layer.on('tileerror', () => {
       if (hadTileError) return;
       hadTileError = true;
-      onStatus('Vegetation imagery is unavailable for this date or area.');
+      onStatusRef.current('Vegetation imagery is unavailable for this date or area.');
     });
     layer.addTo(map);
     ndviLayerRef.current = layer;
@@ -266,7 +313,7 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
         const btn = document.querySelector<HTMLElement>('.leaflet-draw-draw-polygon');
         btn?.click();
       }, 60);
-      onStatus(tool === 'split' ? 'Auto-split: trace the outside boundary · double-click to finish' : 'Click to place corners · double-click (or first point) to close · Esc to cancel');
+      onStatusRef.current(tool === 'split' ? 'Auto-split: trace the outside boundary · double-click to finish' : 'Click to place corners · double-click (or first point) to close · Esc to cancel');
       return () => clearTimeout(timer);
     } else {
       try {
@@ -335,6 +382,37 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
       // active, just hidden via CSS — Leaflet needs this nudge once it's
       // visible again or tiles render at the wrong size/offset.
       requestAnimationFrame(() => mapRef.current?.invalidateSize());
+    },
+
+    editBoundary(id) {
+      const map = mapRef.current;
+      const field = loadFields().find((item) => item.id === id);
+      if (!map || !field) return;
+      if (boundaryEditControlRef.current) {
+        map.removeControl(boundaryEditControlRef.current);
+        if (boundaryEditGroupRef.current) map.removeLayer(boundaryEditGroupRef.current);
+      }
+      const editGroup = new L.FeatureGroup();
+      const shapes = L.geoJSON(field.geometry as any);
+      shapes.eachLayer((layer) => editGroup.addLayer(layer));
+      editGroup.addTo(map);
+      const editControl = new L.Control.Draw({
+        draw: {
+          polygon: false,
+          polyline: false,
+          rectangle: false,
+          circle: false,
+          marker: false,
+          circlemarker: false,
+        },
+        edit: { featureGroup: editGroup, remove: false },
+      });
+      boundaryEditGroupRef.current = editGroup;
+      boundaryEditControlRef.current = editControl;
+      boundaryEditFieldIdRef.current = id;
+      editControl.addTo(map);
+      map.fitBounds(editGroup.getBounds(), { padding: [60, 60], maxZoom: 17 });
+      onStatus('Drag boundary points to reshape the paddock, then save or cancel in the map toolbar.');
     },
   }));
 

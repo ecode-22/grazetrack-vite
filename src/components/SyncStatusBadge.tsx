@@ -10,6 +10,7 @@ const LABEL: Record<SyncStatus, string> = {
   pending: '⏳ Changes pending',
   error: '⚠️ Sync error',
   'no-account': '👤 Not signed in — local only',
+  'auth-expired': '🔐 Sign in again to sync — saving locally',
 };
 
 export default function SyncStatusBadge() {

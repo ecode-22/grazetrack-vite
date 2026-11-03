@@ -3,11 +3,10 @@ import Modal from './Modal';
 import { exportJSON, exportGeoJSON, exportCSV, importJSON, clearAllData } from '@/lib/export';
 
 interface Props {
-  onDataChanged: () => void;
   onClose: () => void;
 }
 
-export default function ExportModal({ onDataChanged, onClose }: Props) {
+export default function ExportModal({ onClose }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
@@ -22,7 +21,6 @@ export default function ExportModal({ onDataChanged, onClose }: Props) {
         return;
       }
       await importJSON(new File([text], file.name));
-      onDataChanged();
       onClose();
     } catch {
       alert('Invalid backup file.');
@@ -33,7 +31,6 @@ export default function ExportModal({ onDataChanged, onClose }: Props) {
   function handleClear() {
     if (!confirm('Delete ALL data? Export a backup first!\nThis cannot be undone.')) return;
     clearAllData();
-    onDataChanged();
     onClose();
   }
 
