@@ -1,11 +1,8 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import FieldList from './FieldList';
 import FieldDetail from './FieldDetail';
 import SyncStatusBadge from './SyncStatusBadge';
 import { useGtRefresh } from '@/lib/useGtRefresh';
 import { getStorageUsage } from '@/lib/localStore';
-import { getCurrentAccount, hasApiSession, logoutAccount } from '@/lib/api';
 
 interface Props {
   hidden: boolean;
@@ -42,21 +39,6 @@ interface Props {
 
 export default function Sidebar(props: Props) {
   useGtRefresh();
-  const [accountEmail, setAccountEmail] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!hasApiSession()) return;
-    let cancelled = false;
-    getCurrentAccount()
-      .then((account) => { if (!cancelled) setAccountEmail(account.email); })
-      .catch(() => { if (!cancelled) setAccountEmail(null); });
-    return () => { cancelled = true; };
-  }, []);
-
-  async function signOut() {
-    await logoutAccount().catch(() => undefined);
-    setAccountEmail(null);
-  }
 
   const storage = getStorageUsage();
   const storagePct = Math.min(100, storage.pct);
@@ -81,8 +63,8 @@ export default function Sidebar(props: Props) {
         </div>
       </div>
 
-      <div className="sb-tools">
-        <div className="sb-label">🛠 Drawing Tools</div>
+      <details className="sb-tools" open>
+        <summary className="sb-label">🛠 Drawing Tools</summary>
         <div className="tool-grid">
           <button
             className={`tcrd${props.tool === 'select' ? ' active' : ''}`}
@@ -148,18 +130,18 @@ export default function Sidebar(props: Props) {
           </div>
         )}
         <p className="tool-hint">{props.toolHint}</p>
-      </div>
+      </details>
 
-      <div className="sb-fields">
-        <div className="sb-label">
+      <details className="sb-fields" open>
+        <summary className="sb-label">
           📋 Fields
-        </div>
+        </summary>
         <FieldList selectedFieldId={props.selectedFieldId} onSelect={props.onSelectField} />
-      </div>
+      </details>
 
       {props.selectedFieldId && (
-        <div className="sb-detail">
-          <div className="sb-label">📌 Selected Field</div>
+        <details className="sb-detail" open>
+          <summary className="sb-label">📌 Selected Field</summary>
           <FieldDetail
             fieldId={props.selectedFieldId}
             onEdit={props.onEditField}
@@ -167,23 +149,11 @@ export default function Sidebar(props: Props) {
             onGraze={props.onGrazeField}
             onEditBoundary={props.onEditBoundaryField}
           />
-        </div>
+        </details>
       )}
 
       <div className="sb-account">
         <SyncStatusBadge />
-        {accountEmail ? (
-          <div className="sb-user-card">
-            <span className="sb-avatar" aria-hidden="true">{accountEmail.slice(0, 1).toUpperCase()}</span>
-            <div className="sb-user-info">
-              <Link to="/account" className="sb-user-email" title="Manage account">{accountEmail}</Link>
-              <Link to="/account" className="sb-sync-label">Account settings</Link>
-            </div>
-            <button type="button" className="sb-signout-btn" onClick={() => void signOut()} aria-label="Sign out" title="Sign out">↪</button>
-          </div>
-        ) : (
-          <Link to="/login" className="sb-signin-btn">☁ <span>Sign in to sync</span></Link>
-        )}
       </div>
 
       <div className="sb-storage">

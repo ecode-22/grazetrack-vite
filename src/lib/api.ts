@@ -5,9 +5,9 @@ const DEFAULT_API_HOST = typeof window !== 'undefined' && window.location.hostna
   ? window.location.hostname
   : 'localhost';
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '')
-  || `http://${DEFAULT_API_HOST}:8000/api`;
-const ACCESS_TOKEN_KEY = 'gt_api_access';
-const REFRESH_TOKEN_KEY = 'gt_api_refresh';
+  || `${typeof window !== 'undefined' ? window.location.protocol : 'http:'}//${DEFAULT_API_HOST}:8000/api`;
+const SESSION_KEY = 'gt_api_session';
+const LEGACY_TOKEN_KEYS = ['gt_api_access', 'gt_api_refresh'];
 
 type AuthMode = 'signin' | 'signup';
 
@@ -20,16 +20,20 @@ export type FarmData = {
 };
 
 
-type TokenResponse = {
-  access: string;
-  refresh: string;
+type SessionResponse = {
   user: { id: number; email: string };
 };
 
 export type AccountInfo = { id: number; email: string; date_joined: string };
 
+let csrfToken: string | null = null;
+
+if (typeof window !== 'undefined') {
+  for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key);
+}
+
 export function hasApiSession() {
-  return Boolean(localStorage.getItem(ACCESS_TOKEN_KEY) && localStorage.getItem(REFRESH_TOKEN_KEY));
+  return localStorage.getItem(SESSION_KEY) === '1';
 }
 
 let authExpired = false;
@@ -38,17 +42,27 @@ export function isAuthExpired() {
   return authExpired;
 }
 
-function saveTokens(tokens: TokenResponse) {
+function saveSession(userId: number) {
   authExpired = false;
-  localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access);
-  localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh);
+  localStorage.setItem(SESSION_KEY, '1');
+  setActiveAccount(userId);
 }
 
 export function clearApiSession() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(SESSION_KEY);
+  for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key);
+  csrfToken = null;
   setActiveAccount(null);
   window.dispatchEvent(new CustomEvent('gt:auth-changed'));
+}
+
+async function getCsrfToken() {
+  if (csrfToken) return csrfToken;
+  const response = await fetch(`${API_URL}/auth/csrf/`, { credentials: 'include' });
+  if (!response.ok) throw await responseError(response);
+  const body = await response.json() as { csrfToken: string };
+  csrfToken = body.csrfToken;
+  return csrfToken;
 }
 
 async function responseError(response: Response) {
@@ -62,9 +76,11 @@ async function responseError(response: Response) {
 }
 
 export async function authenticate(email: string, password: string, mode: AuthMode, confirmPassword?: string, fullName?: string) {
+  const token = await getCsrfToken();
   const response = await fetch(`${API_URL}/auth/${mode === 'signin' ? 'login' : 'register'}/`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token },
     body: JSON.stringify({
       email: email.trim(),
       password,
@@ -72,9 +88,8 @@ export async function authenticate(email: string, password: string, mode: AuthMo
     }),
   });
   if (!response.ok) throw await responseError(response);
-  const tokens = await response.json() as TokenResponse;
-  setActiveAccount(tokens.user.id);
-  saveTokens(tokens);
+  const session = await response.json() as SessionResponse;
+  saveSession(session.user.id);
 }
 
 export function requestPasswordReset(email: string) {
@@ -98,45 +113,35 @@ export function getCurrentAccount() {
 export function changeAccountPassword(currentPassword: string, newPassword: string) {
   return apiRequest<{ detail: string }>('/auth/password/', {
     method: 'POST',
-    body: JSON.stringify({
-      current_password: currentPassword,
-      new_password: newPassword,
-      refresh: localStorage.getItem(REFRESH_TOKEN_KEY),
-    }),
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
   });
 }
 
 export async function logoutAccount() {
   try {
-    const refresh = localStorage.getItem(REFRESH_TOKEN_KEY);
-    if (refresh) {
-      await apiRequest<{ detail: string }>('/auth/logout/', {
-        method: 'POST',
-        body: JSON.stringify({ refresh }),
-      });
-    }
+    if (hasApiSession()) await apiRequest<{ detail: string }>('/auth/logout/', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
   } finally {
     clearApiSession();
   }
 }
 
 async function refreshAccessToken() {
-  const refresh = localStorage.getItem(REFRESH_TOKEN_KEY);
-  if (!refresh) return null;
   try {
+    const token = await getCsrfToken();
     const response = await fetch(`${API_URL}/auth/refresh/`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh }),
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token },
+      body: JSON.stringify({}),
     });
     if (!response.ok) {
       authExpired = true;
       return null;
     }
-    const tokens = await response.json() as { access: string; refresh?: string };
-    localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access);
-    if (tokens.refresh) localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh);
-    return tokens.access;
+    return true;
   } catch {
     return null;
   }
@@ -145,19 +150,22 @@ async function refreshAccessToken() {
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('Content-Type', 'application/json');
-  const access = localStorage.getItem(ACCESS_TOKEN_KEY);
-  if (access) headers.set('Authorization', `Bearer ${access}`);
+  const method = (init.method ?? 'GET').toUpperCase();
+  if (!['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
+    headers.set('X-CSRFToken', await getCsrfToken());
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   const signal = init.signal ? AbortSignal.any([init.signal, controller.signal]) : controller.signal;
   try {
-  let response = await fetch(`${API_URL}${path}`, { ...init, headers, signal });
-  if (response.status === 401 && access) {
+  let response = await fetch(`${API_URL}${path}`, { ...init, headers, signal, credentials: 'include' });
+  if (response.status === 401 && hasApiSession()) {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
-      headers.set('Authorization', `Bearer ${refreshed}`);
-      response = await fetch(`${API_URL}${path}`, { ...init, headers, signal });
+      response = await fetch(`${API_URL}${path}`, { ...init, headers, signal, credentials: 'include' });
+    } else {
+      clearApiSession();
     }
   }
   if (!response.ok) throw await responseError(response);

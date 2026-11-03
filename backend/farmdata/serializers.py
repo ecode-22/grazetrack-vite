@@ -16,7 +16,7 @@ User = get_user_model()
 
 class AccountSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, trim_whitespace=False)
+    password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
 
     def validate_email(self, value):
         return value.strip().lower()
@@ -24,7 +24,7 @@ class AccountSerializer(serializers.Serializer):
 
 class RegistrationSerializer(AccountSerializer):
     full_name = serializers.CharField(max_length=150, trim_whitespace=True)
-    confirm_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    confirm_password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
 
     def validate_password(self, value):
         validate_password(value)
@@ -75,10 +75,10 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
-    uid = serializers.CharField()
-    token = serializers.CharField()
-    password = serializers.CharField(write_only=True, trim_whitespace=False)
-    confirm_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    uid = serializers.CharField(max_length=64)
+    token = serializers.CharField(max_length=256)
+    password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
+    confirm_password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
 
     def validate(self, attrs):
         if attrs['password'] != attrs['confirm_password']:
@@ -99,7 +99,12 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
 
 class OwnedRefreshTokenSerializer(serializers.Serializer):
-    refresh = serializers.CharField(write_only=True)
+    refresh = serializers.CharField(write_only=True, required=False)
+
+    def validate(self, attrs):
+        refresh = attrs.get('refresh') or self.context['request'].COOKIES.get('gt_refresh', '')
+        attrs['refresh'] = self.validate_refresh(refresh)
+        return super().validate(attrs)
 
     def validate_refresh(self, value):
         try:
@@ -112,8 +117,8 @@ class OwnedRefreshTokenSerializer(serializers.Serializer):
 
 
 class PasswordChangeSerializer(OwnedRefreshTokenSerializer):
-    current_password = serializers.CharField(write_only=True, trim_whitespace=False)
-    new_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    current_password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
+    new_password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
 
     def validate_current_password(self, value):
         if not self.context['request'].user.check_password(value):
@@ -134,3 +139,23 @@ class FarmDataSerializer(serializers.ModelSerializer):
         model = FarmData
         fields = ('fields', 'events', 'groups', 'farm', 'updated_at')
         read_only_fields = ('updated_at',)
+
+    def validate_fields(self, value):
+        if not isinstance(value, list) or len(value) > 2000 or any(not isinstance(item, dict) for item in value):
+            raise serializers.ValidationError('Fields must be a list with no more than 2,000 entries.')
+        return value
+
+    def validate_events(self, value):
+        if not isinstance(value, list) or len(value) > 20000 or any(not isinstance(item, dict) for item in value):
+            raise serializers.ValidationError('Events must be a list with no more than 20,000 entries.')
+        return value
+
+    def validate_groups(self, value):
+        if not isinstance(value, list) or len(value) > 1000 or any(not isinstance(item, dict) for item in value):
+            raise serializers.ValidationError('Groups must be a list with no more than 1,000 entries.')
+        return value
+
+    def validate_farm(self, value):
+        if value is not None and not isinstance(value, dict):
+            raise serializers.ValidationError('Farm must be an object or null.')
+        return value

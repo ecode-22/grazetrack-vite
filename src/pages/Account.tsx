@@ -73,27 +73,40 @@ export default function Account() {
   return (
     <main className="account-page">
       <header className="account-page-header">
-        <Link to="/" className="account-back-link">← Farm workspace</Link>
-        <span className="account-kicker">ACCOUNT SETTINGS</span>
-        <h1>Your account</h1>
-        <p>Manage the sign-in connected to your farm records.</p>
+        <Link to="/" className="account-back-link"><span aria-hidden="true">←</span> Farm workspace</Link>
+        <div className="account-title-row">
+          <span className="account-title-mark" aria-hidden="true">GT</span>
+          <div>
+            <span className="account-kicker">ACCOUNT SETTINGS</span>
+            <h1>Your account</h1>
+            <p>Manage your sign-in and keep your farm records secure.</p>
+          </div>
+        </div>
       </header>
 
       <div className="account-grid">
         <section className="card account-profile-card">
-          <div className="account-section-heading"><span className="account-avatar">{account?.email.slice(0, 1).toUpperCase() ?? '·'}</span><div><h2>Profile</h2><p>Account details used for farm sync.</p></div></div>
-          {loading ? <p className="account-muted">Loading account details…</p> : (
+          <div className="account-section-heading">
+            <span className="account-avatar" aria-hidden="true">{account?.email.slice(0, 1).toUpperCase() ?? '·'}</span>
+            <div><h2>Profile</h2><p>Account details used for farm sync.</p></div>
+          </div>
+          {loading ? <p className="account-muted" aria-live="polite">Loading account details…</p> : (
             <dl className="account-details">
               <div><dt>Email</dt><dd>{account?.email ?? 'Unavailable'}</dd></div>
               <div><dt>Farm</dt><dd>{farm?.name || 'Farm name not set'}</dd></div>
               <div><dt>Member since</dt><dd>{account ? new Date(account.date_joined).toLocaleDateString() : '—'}</dd></div>
             </dl>
           )}
-          <button type="button" className="account-signout-button" onClick={() => void handleSignOut()}>↪ Sign out</button>
+          <button type="button" className="account-signout-button" onClick={() => void handleSignOut()}>
+            <span aria-hidden="true">↪</span> Sign out
+          </button>
         </section>
 
         <section className="card account-password-card">
-          <div className="account-section-heading"><span className="account-key-icon" aria-hidden="true">⌑</span><div><h2>Change password</h2><p>Use at least 8 characters and choose a password you don’t use elsewhere.</p></div></div>
+          <div className="account-section-heading">
+            <span className="account-key-icon" aria-hidden="true">⌑</span>
+            <div><h2>Change password</h2><p>Use at least 8 characters and choose a password you don’t use elsewhere.</p></div>
+          </div>
           <form className="account-password-form" onSubmit={handlePasswordChange}>
             <div className="fg"><label htmlFor="current-password">Current password</label><input id="current-password" type="password" autoComplete="current-password" required value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></div>
             <div className="fg"><label htmlFor="new-password">New password</label><input id="new-password" type="password" autoComplete="new-password" minLength={8} required value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></div>

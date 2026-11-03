@@ -4343,6 +4343,79 @@ body {
 
 /* The sidebar owns the product brand; the top bar names the active farm. */
 .workspace-brand, .workspace-mark, .workspace-brand-copy { display: none; }
+
+.account-page { background: linear-gradient(145deg, #f1f6f1 0%, #f8f8f4 52%, #f3f4ee 100%); }
+.account-page-header { margin-bottom: 28px; }
+.account-back-link { display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid #dfe7df; border-radius: 5px; background: #ffffffb8; }
+.account-back-link:hover { border-color: #9abda4; text-decoration: none; }
+.account-title-row { display: flex; align-items: center; gap: 14px; }
+.account-title-mark { display: grid; width: 48px; aspect-ratio: 1; place-items: center; border: 1px solid #c9dbc9; border-radius: 7px; background: #e5efe5; color: #286747; font-family: Georgia, 'Times New Roman', serif; font-size: 15px; font-weight: 700; }
+.account-profile-card, .account-password-card { border: 1px solid #e1e8e0; box-shadow: 0 8px 26px #244e380a; }
+.account-avatar, .account-key-icon { border-radius: 7px; }
+.account-signout-button { display: inline-flex; align-items: center; gap: 7px; }
+.account-signout-button:focus-visible, .account-back-link:focus-visible, .account-reset-link:focus-visible { outline: 3px solid #39805a; outline-offset: 3px; }
+
+.about-legal-section, .about-feedback-section { display: grid; gap: 8px; margin-top: 20px; padding-top: 17px; border-top: 1px solid var(--border-light); }
+.about-legal-section h2, .about-feedback-section h2 { color: var(--text); font-size: 13px; }
+.about-legal-section p, .about-feedback-section > p { color: var(--text-secondary); font-size: 11px; line-height: 1.5; }
+.about-legal-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.about-legal-links a { display: inline-flex; align-items: center; min-height: 34px; padding: 0 10px; border: 1px solid #d8e3d9; border-radius: 5px; background: #f7faf7; color: #286747; font-size: 11px; font-weight: 700; text-decoration: none; }
+.about-legal-links a:hover { border-color: #8fb89a; background: #eef6ef; }
+.feedback-panel { min-width: 0; }
+.feedback-panel > summary { color: #286747; font-size: 11px; font-weight: 700; cursor: pointer; }
+.feedback-form { display: grid; gap: 10px; margin-top: 12px; }
+.feedback-form label { display: grid; gap: 5px; color: var(--text-secondary); font-size: 11px; font-weight: 700; }
+.feedback-form select, .feedback-form textarea { width: 100%; min-width: 0; padding: 8px 9px; border: 1px solid var(--border-strong); border-radius: 5px; background: #fff; color: var(--text); font: inherit; font-size: 12px; }
+.feedback-form select { min-height: 36px; }
+.feedback-form textarea { resize: vertical; }
+.feedback-form select:focus, .feedback-form textarea:focus { border-color: #39805a; outline: 3px solid #39805a24; }
+.feedback-submit { justify-self: start; min-height: 36px; padding: 0 12px; border: 1px solid #286747; border-radius: 5px; background: #286747; color: white; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.feedback-submit:hover { background: #1e5739; }
+.feedback-note { color: var(--text-muted); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.feedback-note a { color: #286747; }
+
+@media (max-width: 700px) {
+    .account-page-header { margin-bottom: 20px; }
+    .account-title-row { align-items: flex-start; }
+    .account-title-mark { flex: 0 0 42px; width: 42px; }
+}
+
+.sidebar > details > summary { list-style: none; }
+.sidebar > details > summary::-webkit-details-marker { display: none; }
+.sidebar > details > summary::after { content: '+'; margin-left: auto; color: #829087; font-size: 15px; font-weight: 500; }
+.sidebar > details[open] > summary::after { content: '−'; }
+.sidebar > details > summary { min-height: 36px; margin: -5px -5px 10px; padding: 5px; border-radius: 4px; cursor: pointer; }
+.sidebar > details > summary:hover { background: #f3f7f3; color: #286747; }
+.sidebar > details:not([open]) > summary { margin-bottom: 0; }
+.sidebar > .sb-fields:not([open]) { flex: 0 0 auto; }
+.sidebar > .sb-fields[open] { overflow: auto; }
+.sidebar > .sb-detail { flex: 0 0 auto; max-height: 40%; overflow: auto; }
+
+.tab-bar { position: relative; }
+.workspace-account { position: relative; z-index: 20; flex: 0 0 auto; margin-left: auto; }
+.workspace-account > summary { display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 4px 9px 4px 5px; border: 1px solid #dfe7df; border-radius: 6px; background: #fff; color: #345542; list-style: none; cursor: pointer; }
+.workspace-account > summary::-webkit-details-marker { display: none; }
+.workspace-account > summary:hover, .workspace-account[open] > summary { border-color: #9fbea4; background: #f8fbf8; }
+.workspace-account-avatar { display: grid; width: 30px; aspect-ratio: 1; place-items: center; border-radius: 50%; background: #286747; color: white; font-size: 12px; font-weight: 800; }
+.workspace-account-label { font-size: 11px; font-weight: 700; }
+.workspace-account-chevron { color: #758279; font-size: 13px; }
+.workspace-account-menu { position: absolute; top: calc(100% + 8px); right: 0; display: grid; width: min(250px, calc(100vw - 24px)); gap: 4px; padding: 9px; border: 1px solid #dfe7df; border-radius: 7px; background: white; box-shadow: 0 12px 30px #1c33241c; }
+.workspace-account-email { overflow: hidden; padding: 7px 8px 9px; border-bottom: 1px solid #edf1ed; color: #68766d; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-account-link, .workspace-account-signout { display: flex; align-items: center; min-height: 37px; padding: 0 9px; border: 0; border-radius: 4px; background: transparent; color: #244e38; font: inherit; font-size: 12px; font-weight: 600; text-align: left; text-decoration: none; cursor: pointer; }
+.workspace-account-link:hover, .workspace-account-signout:hover { background: #f1f6f1; }
+.workspace-account-signout { color: #a53e35; }
+.workspace-account > summary:focus-visible, .workspace-account-link:focus-visible, .workspace-account-signout:focus-visible { outline: 3px solid #39805a; outline-offset: 2px; }
+
+@media (max-width: 600px) {
+    .tab-bar { gap: 7px; }
+    .tab-links { flex: 1 1 0; min-width: 0; }
+    .workspace-account { margin-left: 0; }
+    .workspace-account > summary { gap: 0; width: 38px; height: 38px; justify-content: center; padding: 3px; }
+    .workspace-account-label, .workspace-account-chevron { display: none; }
+    .workspace-account-avatar { width: 28px; }
+    .workspace-account-menu { position: fixed; top: 56px; right: 9px; }
+    .sidebar > details > summary { min-height: 42px; }
+}
 .workspace-farm { display: flex; align-items: baseline; gap: 8px; min-width: 0; max-width: 260px; padding-right: 18px; border-right: 1px solid #e4e9e4; }
 .workspace-farm span { color: #87938b; font-size: 10px; text-transform: uppercase; }
 .workspace-farm strong { overflow: hidden; color: #345542; font-family: Georgia, 'Times New Roman', serif; font-size: 13px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }

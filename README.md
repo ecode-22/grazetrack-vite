@@ -102,10 +102,23 @@ Set `DATABASE_URL` in `backend/.env` to the connection string from your Supabase
 project's **Connect** dialog. Use a direct or session-pooler PostgreSQL URL with
 SSL enabled. Django migrations create the account and farm-data tables in that
 database; do not enable Supabase Auth or expose the database URL to the browser.
-The frontend calls Django at `http://localhost:8000/api` by default. Set
-`VITE_API_URL` in `.env.local` to change it. For deployment, set a strong
-`DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, `DJANGO_ALLOWED_HOSTS`, and
-`CORS_ALLOWED_ORIGINS` for the deployed frontend and API domains.
+The frontend calls Django at the same hostname and scheme on port `8000` by
+default. Set `VITE_API_URL` in `.env.local` to change it. Authentication uses
+short-lived JWTs in HttpOnly cookies; the browser never receives the JWT values
+in JavaScript-readable storage. Unsafe API requests use a CSRF token. For
+deployment, use HTTPS and set a new strong `DJANGO_SECRET_KEY`,
+`DJANGO_DEBUG=false`, `DJANGO_ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, and
+`CSRF_TRUSTED_ORIGINS` to the exact deployed frontend/API origins. If the
+frontend and API are on different sites, set `DJANGO_COOKIE_SAMESITE=None`;
+this requires HTTPS. When TLS terminates at a reverse proxy, set
+`DJANGO_TRUST_X_FORWARDED_PROTO=true` only when that proxy strips and resets the
+forwarded-proto header.
+
+Production request throttles use Django's database cache. After migrations,
+create its table once with `python backend/manage.py createcachetable`. Local
+development uses an in-process cache. Django admin is disabled by default;
+enable it only when needed with `DJANGO_ADMIN_ENABLED=true` and restrict access
+at the deployment edge as well.
 
 For testing from another device on your local network, the frontend's default
 API URL uses the same hostname as the Vite page. Add the computer's LAN IP to
