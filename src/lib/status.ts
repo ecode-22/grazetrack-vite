@@ -33,8 +33,7 @@ export function getStatus(field: Field): FieldStatus {
 
   const target = getEffectiveRestTarget(field);
   if (rest >= target) return { label: 'Ready', cls: 'ready' };
-  if (rest >= target * 0.6) return { label: `${rest}d / ${target}d rest`, cls: 'resting' };
-  return { label: 'Needs rest', cls: 'danger' };
+  return { label: `Resting · ${Math.max(0, target - rest)} days to go`, cls: 'resting' };
 }
 
 export function getReadinessPct(field: Field): number {

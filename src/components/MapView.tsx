@@ -3,7 +3,7 @@ import L from 'leaflet';
 import 'leaflet-draw';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
-import { loadEvents, loadFields, loadFarmProfile, saveFields, nextColor, onDataChanged } from '@/lib/localStore';
+import { loadEvents, loadFields, loadFarmProfile, saveFarmProfile, saveFields, nextColor, onDataChanged } from '@/lib/localStore';
 import { getStatus } from '@/lib/status';
 import { calcAreaHa } from '@/lib/geo';
 import type { Field, FieldGeometry, FieldType } from '@/lib/types';
@@ -68,6 +68,8 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
   const boundaryEditControlRef = useRef<L.Control.Draw | null>(null);
   const boundaryEditFieldIdRef = useRef<string | null>(null);
   const selectedFieldIdRef = useRef<string | null>(null);
+  const hasFittedFieldsRef = useRef(false);
+  const pickingFarmLocationRef = useRef(false);
   const toolRef = useRef(tool);
   const onBoundaryDrawnRef = useRef(onBoundaryDrawn);
   const onStatusRef = useRef(onStatus);
@@ -87,7 +89,7 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
     const mapCenter: L.LatLngExpression = location
       ? [location.latitude, location.longitude]
       : [-33.9, 18.5];
-    const map = L.map(containerRef.current).setView(mapCenter, 15);
+    const map = L.map(containerRef.current, { zoomControl: false }).setView(mapCenter, 15);
     mapRef.current = map;
 
     const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -194,13 +196,32 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
       }
     });
 
-    map.on('click', () => {
-      // Matches the original: a plain map click while in select mode
-      // (i.e. not mid-draw) clears the current selection.
+    const startFarmLocationPick = () => {
+      pickingFarmLocationRef.current = true;
+      onStatusRef.current('Tap the map to set the farm location');
+    };
+    window.addEventListener('gt:pick-farm-location', startFarmLocationPick);
+
+    map.on('click', (event: L.LeafletMouseEvent) => {
+      if (pickingFarmLocationRef.current) {
+        pickingFarmLocationRef.current = false;
+          const previous = loadFarmProfile();
+          const location = {
+          latitude: event.latlng.lat,
+          longitude: event.latlng.lng,
+          accuracyM: 0,
+          capturedAt: new Date().toISOString(),
+        };
+        saveFarmProfile(previous ? { ...previous, location } : { name: 'My Farm', deviceMode: 'multiple', location });
+        onStatusRef.current('Farm location saved');
+        return;
+      }
+      // A plain map click while in select mode clears the current selection.
       if (!pendingLayerRef.current) onDeselect();
     });
 
     return () => {
+      window.removeEventListener('gt:pick-farm-location', startFarmLocationPick);
       map.remove();
       mapRef.current = null;
     };
@@ -215,6 +236,7 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
 
     group.clearLayers();
     const fields = loadFields();
+    const allBounds = L.latLngBounds([]);
     const events = loadEvents();
     const cutoff = new Date();
     cutoff.setFullYear(cutoff.getFullYear() - 1);
@@ -252,7 +274,12 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView(
         });
       });
       group.addLayer(layer);
+      allBounds.extend(layer.getBounds());
     });
+    if (!hasFittedFieldsRef.current && allBounds.isValid()) {
+      map.fitBounds(allBounds, { padding: [40, 40], maxZoom: 17 });
+      hasFittedFieldsRef.current = true;
+    }
   }
 
   useEffect(() => {

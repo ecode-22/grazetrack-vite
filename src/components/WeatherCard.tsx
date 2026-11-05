@@ -54,9 +54,10 @@ function formatDay(date: string) {
   return new Intl.DateTimeFormat(undefined, { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
 }
 
-export default function WeatherCard({ location, onSaveFarmLocation }: {
+export default function WeatherCard({ location, onSaveFarmLocation, onPickMap }: {
   location: WeatherLocation | null;
   onSaveFarmLocation: (location: WeatherLocation) => void;
+  onPickMap: () => void;
 }) {
   const [data, setData] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -126,6 +127,25 @@ export default function WeatherCard({ location, onSaveFarmLocation }: {
     setEditingLocation(false);
   }
 
+  function useMyLocation() {
+    setLocationError('');
+    if (!navigator.geolocation) {
+      setLocationError('Location is not available in this browser.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition((position) => {
+      onSaveFarmLocation({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracyM: position.coords.accuracy,
+        capturedAt: new Date().toISOString(),
+      });
+      setLatitude(String(position.coords.latitude));
+      setLongitude(String(position.coords.longitude));
+      setEditingLocation(false);
+    }, () => setLocationError('Could not get your location. Check browser permissions and try again.'), { enableHighAccuracy: true, timeout: 12000 });
+  }
+
   return (
     <section className="card weather-card" aria-label="Local weather forecast">
       <div className="weather-heading">
@@ -149,11 +169,11 @@ export default function WeatherCard({ location, onSaveFarmLocation }: {
 
       {editingLocation || !location ? (
         <form className="weather-location-form" onSubmit={(event) => { event.preventDefault(); saveLocation(); }}>
-          <p>Weather is based on your farm coordinates, not this device’s location.</p>
+          <p>Set the farm location for a local forecast.</p>
           <label>Latitude<input type="number" min="-90" max="90" step="any" value={latitude} onChange={(event) => setLatitude(event.target.value)} placeholder="e.g. -33.92" /></label>
           <label>Longitude<input type="number" min="-180" max="180" step="any" value={longitude} onChange={(event) => setLongitude(event.target.value)} placeholder="e.g. 18.42" /></label>
           {locationError && <p className="weather-location-error" role="alert">{locationError}</p>}
-          <div><button className="weather-retry" type="submit">Save farm location</button>{location && <button className="weather-cancel-edit" type="button" onClick={() => setEditingLocation(false)}>Cancel</button>}</div>
+          <div><button className="weather-retry" type="submit">Save farm location</button><button className="weather-cancel-edit" type="button" onClick={useMyLocation}>Use my location</button><button className="weather-cancel-edit" type="button" onClick={onPickMap}>Tap the map</button>{location && <button className="weather-cancel-edit" type="button" onClick={() => setEditingLocation(false)}>Cancel</button>}</div>
         </form>
       ) : error ? (
         <div className="weather-error" role="alert">

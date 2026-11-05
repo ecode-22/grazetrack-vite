@@ -107,7 +107,7 @@ export default function Analytics({ onSelectField }: Props) {
             <h2 className="card-title">Field performance</h2>
             <div className="table-scroll">
               <table className="htbl">
-                <thead><tr><th>Field</th><th>Status</th><th>Events</th><th>Grazing days</th><th>Last grazed</th><th>Avg AU/ha</th><th>12-mo utilization</th></tr></thead>
+                <thead><tr><th>Field</th><th>Status</th><th>Events</th><th>Grazing days</th><th>Last grazed</th><th>Avg head/ha</th><th>12-mo utilization</th></tr></thead>
                 <tbody>{performance.map(({ field, history, last, totalDays, trailingYearDays, avgStocking }) => {
                   const utilization = Math.min(100, Math.round(Math.min(365, trailingYearDays) / 365 * 100));
                   return (

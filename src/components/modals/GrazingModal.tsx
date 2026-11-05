@@ -56,9 +56,9 @@ export default function GrazingModal({ preFieldId, onSaved, onClose }: Props) {
   if (field && countNum && field.maxAUperHa) {
     const auHa = countNum / field.areaHa;
     if (auHa > field.maxAUperHa) {
-      warning = { text: `⚠ ${auHa.toFixed(1)} AU/ha exceeds limit of ${field.maxAUperHa} AU/ha.`, alert: true };
+      warning = { text: `⚠ ${auHa.toFixed(1)} head/ha exceeds limit of ${field.maxAUperHa} head/ha.`, alert: true };
     } else if (auHa > field.maxAUperHa * 0.85) {
-      warning = { text: `Note: ${auHa.toFixed(1)} AU/ha — approaching limit of ${field.maxAUperHa} AU/ha.`, alert: false };
+      warning = { text: `Note: ${auHa.toFixed(1)} head/ha — approaching limit of ${field.maxAUperHa} head/ha.`, alert: false };
     }
   }
 

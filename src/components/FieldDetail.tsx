@@ -8,9 +8,10 @@ interface Props {
   onHistory: (id: string) => void;
   onGraze: (id: string) => void;
   onEditBoundary: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
-export default function FieldDetail({ fieldId, onEdit, onHistory, onGraze, onEditBoundary }: Props) {
+export default function FieldDetail({ fieldId, onEdit, onHistory, onGraze, onEditBoundary, onDelete }: Props) {
   const field = loadFields().find((f) => f.id === fieldId);
   if (!field) return null;
 
@@ -18,17 +19,17 @@ export default function FieldDetail({ fieldId, onEdit, onHistory, onGraze, onEdi
     .filter((e) => e.fieldId === fieldId)
     .sort((a, b) => b.endDate.localeCompare(a.endDate));
   const last = events[0];
-  const restDays = last ? daysSince(last.endDate) : null;
+  const restDays = last ? Math.max(0, daysSince(last.endDate)) : null;
   const status = getStatus(field);
   const today = todayStr();
   const activeEvent = events.find((e) => e.startDate <= today && e.endDate >= today);
-  const pct = getReadinessPct(field);
+  const pct = events.length ? getReadinessPct(field) : 0;
 
   let stockWarning: string | null = null;
   if (last && field.maxAUperHa) {
     const auHa = last.animalCount / field.areaHa;
     if (auHa > field.maxAUperHa) {
-      stockWarning = `⚠ Last event: ${auHa.toFixed(1)} AU/ha exceeds limit of ${field.maxAUperHa} AU/ha`;
+      stockWarning = `⚠ Last event: ${auHa.toFixed(1)} head/ha exceeds limit of ${field.maxAUperHa} head/ha`;
     }
   }
 
@@ -78,10 +79,10 @@ export default function FieldDetail({ fieldId, onEdit, onHistory, onGraze, onEdi
       </div>
       <div className="detail-row">
         <span className="detail-key">Days resting</span>
-        <span className="detail-val">{restDays !== null ? `${restDays} days` : 'No events yet'}</span>
+        <span className="detail-val">{activeEvent ? `Grazing since ${fmtDate(activeEvent.startDate)}` : restDays !== null ? `${restDays} days` : 'No events yet'}</span>
       </div>
       <div className="detail-row">
-        <span className="detail-key">Max AU/ha</span>
+        <span className="detail-key">Max head/ha</span>
         <span className="detail-val">{field.maxAUperHa || '—'}</span>
       </div>
       <div className="detail-row">
@@ -94,7 +95,7 @@ export default function FieldDetail({ fieldId, onEdit, onHistory, onGraze, onEdi
       </div>
       <div className="rest-prog-lbl">
         <span>Rest progress</span>
-        <span>{pct}%{pct < 100 ? ` · ${Math.max(0, field.restTarget - (restDays || 0))}d left` : ' · Ready!'}</span>
+        <span>{events.length ? `${pct}%${pct < 100 ? ` · ${Math.max(0, field.restTarget - (restDays || 0))}d left` : ' · Ready!'}` : 'No history'}</span>
       </div>
 
       {stockWarning && (
@@ -120,6 +121,9 @@ export default function FieldDetail({ fieldId, onEdit, onHistory, onGraze, onEdi
         )}
         <button className="detail-btn primary" onClick={() => onGraze(fieldId)}>
           + Graze
+        </button>
+        <button className="detail-btn delete-field-btn" onClick={() => onDelete(fieldId)}>
+          Delete field
         </button>
       </div>
     </div>

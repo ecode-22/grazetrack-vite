@@ -3,6 +3,7 @@ import Sidebar from '@/components/Sidebar';
 import type { MapViewHandle } from '@/components/MapView';
 import TabBar, { type Tab } from '@/components/TabBar';
 import StatusBar from '@/components/StatusBar';
+import FieldDetail from '@/components/FieldDetail';
 import Dashboard from './Dashboard';
 import RotationPlanner from './RotationPlanner';
 import NameFieldModal from '@/components/modals/NameFieldModal';
@@ -18,7 +19,9 @@ import { splitBoundary as createCampGeometries, type SplitDirection } from '@/li
 import { uid } from '@/lib/utils';
 import type { FieldGeometry, FieldType } from '@/lib/types';
 
-const DEFAULT_HINT = '💡 Click a field on the map to select it';
+const DEFAULT_HINT = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+  ? '💡 Tap a field on the map to select it'
+  : '💡 Click a field on the map to select it';
 const MapView = lazy(() => import('@/components/MapView'));
 const Reports = lazy(() => import('./Reports'));
 const Analytics = lazy(() => import('./Analytics'));
@@ -226,6 +229,11 @@ export default function Home() {
     setTimeout(() => selectField(id), 100);
   }
 
+  function pickFarmLocation() {
+    setActiveTab('map');
+    setTimeout(() => window.dispatchEvent(new CustomEvent('gt:pick-farm-location')), 100);
+  }
+
   return (
     <div className="app-shell">
       {mobileMenuOpen && <button className="mobile-sidebar-backdrop" aria-label="Close farm menu" onClick={() => setMobileMenuOpen(false)} />}
@@ -385,12 +393,29 @@ export default function Home() {
             </button>
           )}
           <StatusBar statusText={statusText} />
+          {selectedFieldId && (
+            <section className="field-bottom-sheet" aria-label="Selected field details">
+              <div className="field-bottom-sheet-header">
+                <strong>{loadFields().find((field) => field.id === selectedFieldId)?.name ?? 'Selected field'}</strong>
+                <button type="button" className="field-sheet-close" onClick={deselect} aria-label="Close field details">×</button>
+              </div>
+              <FieldDetail
+                fieldId={selectedFieldId}
+                onEdit={(id) => setModal({ type: 'edit', fieldId: id })}
+                onHistory={(id) => setModal({ type: 'history', fieldId: id })}
+                onGraze={(id) => openGrazingModal(id)}
+                onEditBoundary={(id) => mapRef.current?.editBoundary(id)}
+                onDelete={handleDeleteSelected}
+              />
+            </section>
+          )}
         </div>
 
         <div className={`tab-panel${activeTab === 'dashboard' ? ' active' : ''}`}>
           {activeTab === 'dashboard' && (
             <Dashboard
               onSelectField={showFieldOnMap}
+              onPickFarmLocation={pickFarmLocation}
             />
           )}
         </div>

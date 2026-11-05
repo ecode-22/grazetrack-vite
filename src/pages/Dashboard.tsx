@@ -15,9 +15,10 @@ function statusFillColor(field: ReturnType<typeof loadFields>[number], status: {
 
 interface Props {
   onSelectField: (id: string) => void;
+  onPickFarmLocation: () => void;
 }
 
-export default function Dashboard({ onSelectField }: Props) {
+export default function Dashboard({ onSelectField, onPickFarmLocation }: Props) {
   useGtRefresh();
 
   const fields = loadFields();
@@ -96,6 +97,7 @@ export default function Dashboard({ onSelectField }: Props) {
         </div>
         <WeatherCard
           location={loadFarmProfile()?.location ?? null}
+          onPickMap={onPickFarmLocation}
           onSaveFarmLocation={(location) => {
             const profile = loadFarmProfile();
             saveFarmProfile(profile
@@ -146,7 +148,7 @@ export default function Dashboard({ onSelectField }: Props) {
               <div className="detail-row" key={field.id}>
                 <span className="detail-key">{field.name}</span>
                 <span className="detail-val" style={{ color: over ? '#dc2626' : '#166534' }}>
-                  {auHa} AU/ha {over ? '⚠' : ''}
+                  {auHa} head/ha {over ? '⚠' : ''}
                 </span>
               </div>
             ))

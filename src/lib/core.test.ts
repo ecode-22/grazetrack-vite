@@ -47,6 +47,14 @@ describe('date and status rules', () => {
     } satisfies GrazingEvent]);
     expect(getStatus(field)).toEqual({ label: 'Planned', cls: 'resting' });
   });
+
+  it('labels recovery as resting instead of a danger state', () => {
+    vi.mocked(loadEvents).mockReturnValue([{
+      id: 'event-1', fieldId: field.id, startDate: '2026-10-28', endDate: '2026-11-01',
+      animalType: 'cattle', animalCount: 10, herd: 'A', notes: '', loggedAt: '2026-10-28',
+    } satisfies GrazingEvent]);
+    expect(getStatus(field)).toEqual({ label: 'Resting · 29 days to go', cls: 'resting' });
+  });
 });
 
 describe('splitBoundary', () => {

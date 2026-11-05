@@ -63,7 +63,7 @@ export default function Sidebar(props: Props) {
         </div>
       </div>
 
-      <details className="sb-tools" open>
+      <details className="sb-tools">
         <summary className="sb-label">🛠 Drawing Tools</summary>
         <div className="tool-grid">
           <button
@@ -96,11 +96,6 @@ export default function Sidebar(props: Props) {
               ✕ Cancel drawing
             </button>
           </>
-        )}
-        {props.selectedFieldId && props.tool === 'select' && (
-          <button className="del-btn" onClick={props.onDeleteSelected}>
-            ✕ Delete selected field
-          </button>
         )}
         <button className="btn-grazing" onClick={props.onLogGrazing}>
           🐄 Log Grazing Event
@@ -148,6 +143,7 @@ export default function Sidebar(props: Props) {
             onHistory={props.onHistoryField}
             onGraze={props.onGrazeField}
             onEditBoundary={props.onEditBoundaryField}
+            onDelete={props.onDeleteSelected}
           />
         </details>
       )}

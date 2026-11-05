@@ -76,7 +76,7 @@ export default function NameFieldModal({ onSave, onCancel }: Props) {
         </div>
       </div>
       <div className="fg">
-        <label>Max AU/ha</label>
+        <label>Max head/ha</label>
         <input
           type="number"
           step="0.1"

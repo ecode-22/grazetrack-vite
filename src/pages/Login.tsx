@@ -99,7 +99,7 @@ export default function Login({ onAuthenticated }: { onAuthenticated?: () => voi
           </div>
         </aside>
       </section>
-      <footer className="auth-footer"><span>GrazingTrack</span><span>Farm records, wherever you work.</span></footer>
+      <footer className="auth-footer"><span>GrazingTrack</span><nav aria-label="Legal"><Link to="/privacy">Privacy Policy</Link><Link to="/terms">Terms of Use</Link></nav></footer>
     </main>
   );
 }

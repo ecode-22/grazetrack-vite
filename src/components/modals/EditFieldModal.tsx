@@ -89,7 +89,7 @@ export default function EditFieldModal({ fieldId, onSaved, onClose }: Props) {
         </div>
       </div>
       <div className="fg">
-        <label>Max AU/ha</label>
+        <label>Max head/ha</label>
         <input type="number" step="0.1" value={maxAU} onChange={(e) => setMaxAU(e.target.value)} />
       </div>
       <div className="fg">

@@ -58,7 +58,7 @@ export function exportCSV() {
   const fields = loadFields();
   const events = [...loadEvents()].sort((a, b) => a.startDate.localeCompare(b.startDate));
   const rows: (string | number)[][] = [
-    ['Field', 'Herd', 'Start date', 'End date', 'Days', 'Animal type', 'Count', 'AU/ha', 'Notes'],
+    ['Field', 'Herd', 'Start date', 'End date', 'Days', 'Animal type', 'Count', 'Head/ha', 'Notes'],
   ];
   events.forEach((e) => {
     const f = fields.find((x) => x.id === e.fieldId);

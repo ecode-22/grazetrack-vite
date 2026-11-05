@@ -50,7 +50,7 @@ export default function HistoryModal({ fieldId, onAddEvent, onClose }: Props) {
               <th>End</th>
               <th>Days</th>
               <th>Animals</th>
-              <th>AU/ha</th>
+              <th>Head/ha</th>
               <th>Notes</th>
               <th></th>
             </tr>

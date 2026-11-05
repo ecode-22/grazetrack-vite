@@ -87,18 +87,6 @@ function TermsOfUse() {
   );
 }
 
-function AppFooter() {
-  return (
-    <footer style={{ marginTop: '2rem', padding: '1rem', borderTop: '1px solid #ccc' }}>
-      <nav aria-label="Legal">
-        <Link to="/privacy">Privacy Policy</Link>
-        {' · '}
-        <Link to="/terms">Terms of Use</Link>
-      </nav>
-    </footer>
-  );
-}
-
 function App() {
   return (
     <BrowserRouter>
@@ -110,7 +98,6 @@ function App() {
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfUse />} />
       </Routes>
-      <AppFooter />
     </BrowserRouter>
   );
 }
